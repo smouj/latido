@@ -28,8 +28,14 @@ import {
 } from '@latido/engine'
 
 import { translate, type Language, type MessageKey } from '@/i18n'
-import { archiveSync, clearState, isDesktop, loadState, notify, platformFetch, saveState } from '@/platform/bridge'
+import { archiveSync, clearState, isDesktop, loadState, notify, platformFetch, readSecret, saveState, storeSecret } from '@/platform/bridge'
 import { keywordsFrom, startRealtime, stopRealtime, type RealtimeStatus } from '@/state/realtime'
+import {
+  TranslationQueue,
+  createTranslator,
+  type TranslateProviderKind,
+  type Translator,
+} from '@latido/engine'
 
 export type ViewKey =
   | 'home'
@@ -46,6 +52,20 @@ export type ViewKey =
   | 'item'
 
 export type ThemeChoice = 'system' | 'dark' | 'light'
+/**
+ * Tema de plataforma: los tres temas oficiales. No cambian la marca, cambian las
+ * maneras (radios, densidad, tipografía, elevación) para que la app se sienta
+ * nativa en cada sistema.
+ */
+export type PlatformChoice = 'windows' | 'macos' | 'linux'
+
+/** Sistema anfitrión, para acertar con el tema la primera vez. */
+function detectPlatform(): PlatformChoice {
+  const ua = (navigator.userAgent || '').toLowerCase()
+  if (ua.includes('mac os') || ua.includes('macintosh')) return 'macos'
+  if (ua.includes('windows')) return 'windows'
+  return 'linux'
+}
 
 export interface Filters {
   topics: string[]
@@ -60,10 +80,104 @@ export interface Toast {
   tone: 'info' | 'ok' | 'warn'
 }
 
+/**
+ * Traducción del contenido.
+ *
+ * La app traduce **a lo que el usuario está leyendo**: el idioma destino es
+ * siempre el de la interfaz. El texto original nunca se pierde ni se sustituye
+ * en el archivo: la traducción es una capa encima, se puede ver el original con
+ * un clic, y la clave del proveedor vive en el llavero del sistema, no en el
+ * archivo de estado.
+ */
+export interface TranslationSettings {
+  enabled: boolean
+  kind: TranslateProviderKind
+  /** URL base para LibreTranslate o para un servidor compatible con OpenAI. */
+  endpoint: string
+  model: string
+}
+
+/** Nombre del secreto en el llavero del sistema. */
+const TRANSLATE_SECRET = 'translate.apiKey'
+
+let translator: Translator | null = null
+let translateQueue: TranslationQueue | null = null
+let translateApiKey = ''
+/** Cache en memoria: clave = texto original → texto traducido. */
+let translateCache = new Map<string, string>()
+let translateBuffer: Record<string, string> = {}
+let translateFlush: ReturnType<typeof setTimeout> | null = null
+
+/** Clave de búsqueda de una traducción: idioma destino + texto original. */
+export function translationLookup(lang: string, text: string): string {
+  return `${lang}\u0000${text}`
+}
+
+/** Rehace traductor y cola con la configuración vigente. */
+function buildTranslator(settings: TranslationSettings, target: Language): void {
+  translator = createTranslator(
+    {
+      kind: settings.kind,
+      target,
+      ...(settings.endpoint.trim() ? { endpoint: settings.endpoint.trim() } : {}),
+      ...(translateApiKey ? { apiKey: translateApiKey } : {}),
+      ...(settings.model.trim() ? { model: settings.model.trim() } : {}),
+    },
+    { fetch: globalThis.fetch, now: () => Date.now() },
+  )
+  translateQueue = null
+}
+
+function ensureQueue(target: Language): TranslationQueue | null {
+  if (!translator?.available) return null
+  if (translateQueue) return translateQueue
+  translateQueue = new TranslationQueue({
+    translator,
+    cache: translateCache,
+    target,
+    onResult: ({ source, target, text }) => {
+      translateBuffer[translationLookup(target, source)] = text
+      // Se agrupan los resultados antes de tocar el estado: traducir cuarenta
+      // titulares no debe provocar cuarenta repintados.
+      if (translateFlush) return
+      translateFlush = setTimeout(() => {
+        translateFlush = null
+        const patch = translateBuffer
+        translateBuffer = {}
+        const current = useLatido.getState()
+        useLatido.setState((state) => ({ translations: { ...state.translations, ...patch } }))
+        void current
+      }, 250)
+    },
+    onError: (error) => {
+      useLatido.setState({ translationError: error.message })
+    },
+  })
+  return translateQueue
+}
+
+/** Encola los textos de lo que se está viendo, sin bloquear nada. */
+function requestTranslations(items: Item[]): void {
+  const state = useLatido.getState()
+  if (!state.translation.enabled) return
+  const queue = ensureQueue(state.lang)
+  if (!queue) return
+  const texts: string[] = []
+  items.slice(0, 40).forEach((item, index) => {
+    if (item.title) texts.push(item.title)
+    // Los cuerpos son largos: solo los de lo primero que se ve.
+    if (item.body && index < 12) texts.push(item.body)
+  })
+  queue.enqueue(texts)
+  void queue.flush()
+}
+
 interface PersistedShape {
   version: number
   session: SessionState
   theme: ThemeChoice
+  platform: PlatformChoice
+  translation: TranslationSettings
   lang: Language
   retentionDays: number
   interests: string[]
@@ -101,8 +215,17 @@ interface LatidoState {
   realtimeDetail: string | null
   /** Último error de sondeo, para que Fuentes y la cabecera puedan explicarlo. */
   pollError: string | null
+  /** Traducciones disponibles, por texto original. */
+  translations: Record<string, string>
+  translation: TranslationSettings
+  translationError: string | null
+  /** `true` = se pide al usuario que traduzca: la capa está apagada o sin proveedor. */
+  translationReady: boolean
+  /** Entradas que el usuario prefiere leer en su idioma original. */
+  showOriginal: Record<string, boolean>
   view: ViewKey
   theme: ThemeChoice
+  platform: PlatformChoice
   lang: Language
   filters: Filters
   query: string
@@ -129,6 +252,12 @@ interface LatidoState {
   stopStream: () => void
   setView: (view: ViewKey) => void
   setTheme: (theme: ThemeChoice) => void
+  setPlatform: (platform: PlatformChoice) => void
+  setTranslation: (patch: Partial<TranslationSettings>) => void
+  setTranslationKey: (value: string) => Promise<void>
+  testTranslation: () => Promise<void>
+  clearTranslations: () => void
+  toggleOriginal: (itemId: string) => void
   setLang: (lang: Language) => void
   setQuery: (query: string) => void
   setFilters: (filters: Partial<Filters>) => void
@@ -169,8 +298,14 @@ export const useLatido = create<LatidoState>((set, get) => ({
   realtime: 'off',
   realtimeDetail: null,
   pollError: null,
+  translations: {},
+  translation: { enabled: false, kind: 'none', endpoint: '', model: '' },
+  translationError: null,
+  translationReady: false,
+  showOriginal: {},
   view: 'home',
   theme: 'system',
+  platform: detectPlatform(),
   lang: 'es',
   filters: defaultFilters,
   query: '',
@@ -207,7 +342,13 @@ export const useLatido = create<LatidoState>((set, get) => ({
     }
 
     applyTheme(get().theme)
+    applyPlatform(get().platform)
     applyLanguage(get().lang)
+
+    // La clave del proveedor de traducción vive en el llavero del sistema.
+    translateApiKey = (await readSecret(TRANSLATE_SECRET)) ?? ''
+    buildTranslator(get().translation, get().lang)
+    set({ translationReady: Boolean(translator?.available) })
 
     // El escritorio usa el cliente HTTP nativo: sin CORS, Reddit, Mastodon y
     // RSS dejan de estar bloqueados. En el navegador se queda el `fetch` normal.
@@ -317,12 +458,70 @@ export const useLatido = create<LatidoState>((set, get) => ({
         clusters: stats.clusters,
       },
     })
+
+    // La traducción va después de pintar: primero el dato real, luego la capa.
+    requestTranslations(items)
+  },
+
+  setTranslation: (patch) => {
+    const translation = { ...get().translation, ...patch }
+    set({ translation, translationError: null })
+    buildTranslator(translation, get().lang)
+    set({ translationReady: Boolean(translator?.available) })
+    if (translation.enabled) requestTranslations(get().items)
+    scheduleSave(get)
+  },
+
+  setTranslationKey: async (value) => {
+    translateApiKey = value.trim()
+    const saved = await storeSecret(TRANSLATE_SECRET, translateApiKey)
+    buildTranslator(get().translation, get().lang)
+    set({ translationReady: Boolean(translator?.available) })
+    if (!saved && translateApiKey) get().toast(get().t('settings.keyNotSaved'), 'warn')
+    else get().toast(get().t('settings.saved'), 'ok')
+  },
+
+  testTranslation: async () => {
+    buildTranslator(get().translation, get().lang)
+    if (!translator?.available) {
+      set({ translationError: get().t('translate.notConfigured') })
+      get().toast(get().t('translate.notConfigured'), 'warn')
+      return
+    }
+    try {
+      const [sample] = await translator.translate([get().t('translate.sample')])
+      set({ translationError: null })
+      get().toast(sample ? `${get().t('translate.works')}: ${sample}` : get().t('translate.works'), 'ok')
+    } catch (error) {
+      set({ translationError: (error as Error).message })
+      get().toast((error as Error).message, 'warn')
+    }
+  },
+
+  clearTranslations: () => {
+    translateCache = new Map()
+    translateQueue = null
+    set({ translations: {}, translationError: null })
+    get().toast(get().t('translate.cacheCleared'), 'ok')
+  },
+
+  toggleOriginal: (itemId) => {
+    const showOriginal = { ...get().showOriginal }
+    if (showOriginal[itemId]) delete showOriginal[itemId]
+    else showOriginal[itemId] = true
+    set({ showOriginal })
   },
 
   setView: (view) => {
     set({ view })
     if (view !== 'search') set({ query: '' })
   },
+  setPlatform: (platform) => {
+    applyPlatform(platform)
+    set({ platform })
+    scheduleSave(get)
+  },
+
   setTheme: (theme) => {
     applyTheme(theme)
     set({ theme })
@@ -331,6 +530,10 @@ export const useLatido = create<LatidoState>((set, get) => ({
   setLang: (lang) => {
     applyLanguage(lang)
     set({ lang })
+    // El idioma destino de la traducción es el de la interfaz: si cambia, el
+    // traductor se rehace y se vuelve a pedir lo que se está viendo.
+    buildTranslator(get().translation, lang)
+    if (get().translation.enabled) requestTranslations(get().items)
     scheduleSave(get)
   },
   setQuery: (query) => {
@@ -479,6 +682,7 @@ export const useLatido = create<LatidoState>((set, get) => ({
       if (parsed.rules) getEngine().store.putAlertRules(parsed.rules)
       getEngine().recompute()
       applyTheme(get().theme)
+      applyPlatform(get().platform)
       applyLanguage(get().lang)
       get().sync()
       await persist(get)
@@ -529,6 +733,8 @@ function buildQuery(filters: Filters, query: string): ItemQuery {
 function applyPersisted(parsed: Partial<PersistedShape>): void {
   const state = useLatido.getState()
   if (parsed.theme) state.theme = parsed.theme
+  if (parsed.platform) state.platform = parsed.platform
+  if (parsed.translation) state.translation = { ...state.translation, ...parsed.translation }
   if (parsed.lang) state.lang = parsed.lang
   if (parsed.retentionDays !== undefined) state.retentionDays = parsed.retentionDays
   if (parsed.interests) state.interests = parsed.interests
@@ -544,6 +750,8 @@ function applyPersisted(parsed: Partial<PersistedShape>): void {
   }
   useLatido.setState({
     theme: state.theme,
+    platform: state.platform,
+    translation: state.translation,
     lang: state.lang,
     retentionDays: state.retentionDays,
     interests: state.interests,
@@ -571,6 +779,8 @@ function buildPersisted(state: LatidoState): PersistedShape {
     version: PERSIST_VERSION,
     session,
     theme: state.theme,
+    platform: state.platform,
+    translation: state.translation,
     lang: state.lang,
     retentionDays: state.retentionDays,
     interests: state.interests,
@@ -644,6 +854,11 @@ function scheduleArchive(get: () => LatidoState): void {
     }
     void archiveSync(payload)
   }, 4000)
+}
+
+/** Aplica el tema de plataforma (radios, densidad, tipografía, neutros). */
+function applyPlatform(platform: PlatformChoice): void {
+  document.documentElement.dataset['platform'] = platform
 }
 
 function applyTheme(theme: ThemeChoice): void {

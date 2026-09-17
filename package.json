@@ -1,6 +1,6 @@
 {
   "name": "latido",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Latido — el pulso de internet. Local-first, sin cuenta, sin servidor.",
   "license": "AGPL-3.0-or-later",

@@ -1881,6 +1881,261 @@ body {
   }
 }
 
+/* ── adaptación y escalado ────────────────────────────────────────────── */
+
+/*
+ * Nada de scroll de más. En pantalla ancha la ventana **no** hace scroll: lo
+ * hacen las columnas, cada una por su cuenta. Así la cabecera y la barra lateral
+ * se quedan quietas y el desplazamiento ocurre donde el usuario mira.
+ */
+@media (min-width: 56.01rem) {
+  html,
+  body {
+    overflow: hidden;
+  }
+}
+
+#root,
+.shell {
+  height: 100dvh;
+  min-height: 0;
+}
+
+/* Sin esto, un hijo de grid no encoge y aparece scroll horizontal. */
+.column,
+.column--center,
+.stream,
+.sidebar,
+.rail,
+.panel {
+  min-width: 0;
+  min-height: 0;
+}
+
+.stream,
+.sidebar,
+.rail {
+  /* Reserva el hueco de la barra de scroll: al aparecer o desaparecer, el
+     contenido no da un salto lateral. */
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  scroll-padding-top: var(--space-4);
+}
+
+/* Tipografías y medios nunca desbordan la columna. */
+img,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.post__title,
+.trend__title,
+.row__title,
+.post__author,
+.rail-trend__title {
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Densidad por tema: Windows compacta, Linux airea, macOS se queda igual. Solo
+ * se escala el espacio, nunca el tamaño del texto: la legibilidad no se negocia.
+ */
+.post {
+  padding: calc(var(--space-4) * var(--density)) calc(var(--space-5) * var(--density));
+}
+
+.trend {
+  padding: calc(var(--space-4) * var(--density));
+}
+
+.row,
+.entity-card {
+  padding: calc(var(--space-3) * var(--density)) 0;
+}
+
+/* El filo interior que usan Windows y macOS para dar volumen a los controles. */
+.btn,
+.icon-btn,
+.search-field,
+.tag,
+.chip,
+.theme-card {
+  box-shadow: inset 0 1px 0 var(--color-control-highlight);
+}
+
+.btn--primary,
+.chip--on {
+  box-shadow: none;
+}
+
+/* En pantallas medianas el contexto no cabe: se retira antes que apretujarlo. */
+@media (max-width: 68rem) {
+  .rail {
+    display: none;
+  }
+}
+
+/* ── selector de tema ─────────────────────────────────────────────────── */
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+.theme-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.theme-card--on {
+  border-color: var(--color-accent-line);
+  background: var(--color-accent-soft);
+}
+
+.theme-card__name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.theme-card__hint {
+  font-size: var(--text-2xs);
+  color: var(--color-text-faint);
+  line-height: var(--leading-snug);
+}
+
+/* Miniatura: reproduce los colores reales de cada tema (espejo de los tokens). */
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  min-height: 3.25rem;
+  justify-content: center;
+}
+
+.theme-swatch__bar {
+  height: 6px;
+  border-radius: 999px;
+  width: 72%;
+  opacity: 0.85;
+}
+
+.theme-swatch__bar--short {
+  width: 44%;
+  opacity: 0.6;
+}
+
+.theme-swatch__accent {
+  height: 6px;
+  width: 22%;
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+
+.theme-swatch--windows {
+  background: #16191c;
+}
+
+.theme-swatch--windows .theme-swatch__bar {
+  background: #f2f4f7;
+}
+
+.theme-swatch--macos {
+  background: #1a1816;
+}
+
+.theme-swatch--macos .theme-swatch__bar {
+  background: #f4f0e9;
+}
+
+.theme-swatch--linux {
+  background: #1b1b1d;
+}
+
+.theme-swatch--linux .theme-swatch__bar {
+  background: #f6f5f4;
+}
+
+/* Control segmentado: una elección entre pocas, sin desplegable. */
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-inset);
+  gap: 2px;
+}
+
+.segmented button {
+  padding: var(--space-1) var(--space-4);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.segmented button:hover {
+  color: var(--color-text);
+}
+
+.segmented button.is-on {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--color-shadow1);
+}
+
+/* Chip de traducción en una publicación: dice que es traducción y deja ver el
+   original, que es la mitad del trato. */
+.post__translated {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px var(--space-2);
+  margin-left: auto;
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.post__translated:hover {
+  color: var(--color-text);
+  border-color: var(--color-accent-line);
+}
+
+/* Aviso en texto (errores de proveedores, por ejemplo). */
+.warn-text {
+  color: var(--color-warning);
+}
+
 /* ── adaptación a pantallas ───────────────────────────────────────────── */
 
 @media (max-width: 72rem) {

@@ -55,6 +55,36 @@ Todas las capturas están tomadas de la aplicación en marcha con **datos reales
 ![Tema claro](docs/screenshots/tema-claro.png)
 *Tema claro «papel»: la misma información sin la estética de terminal.*
 
+## Tres temas, uno por sistema
+
+Latido no te obliga a su aspecto: adopta las maneras del sistema en el que vive.
+Los tres temas cambian **radios, densidad de fila, tipografía, elevación y la
+temperatura del neutro**; lo que no cambia es la marca —el ascua sigue siendo el
+acento— ni la escala tipográfica. Se eligen en Ajustes, con vista previa, y la
+primera vez se detecta el sistema solo.
+
+| Tema | Qué cambia | Cómo se ve |
+| --- | --- | --- |
+| **Windows** | Radios cortos, filas compactas, neutros fríos, Segoe UI | ![Windows](docs/screenshots/tema-windows.png) |
+| **macOS** | Radios generosos, más aire, neutros cálidos, tipografía del sistema | ![macOS](docs/screenshots/tema-macos.png) |
+| **Linux** | Plano, filos marcados, casi sin sombra, Cantarell | ![Linux](docs/screenshots/tema-linux.png) |
+
+Cada tema funciona en claro y en oscuro (o siguiendo al sistema).
+
+## Traducción
+
+El contenido llega en el idioma en que lo escribió su autor. Si activas la
+traducción, Latido lo pasa **al idioma que estás leyendo**, con el proveedor que
+tú elijas: LibreTranslate (propio o público), DeepL u OpenAI.
+
+- **El original nunca se pierde**: cada publicación trae un botón para verla en su
+  idioma, y la traducción se marca como tal.
+- **Nada se pide dos veces**: hay caché, así que releer no vuelve a pagar.
+- **No bloquea**: los textos entran en una cola con concurrencia limitada y
+  espaciado; primero se pinta el dato real y luego la capa traducida.
+- **La clave vive en el llavero del sistema**, nunca en el archivo de estado.
+- Detección de idioma sin modelos: si un texto ya está en tu idioma, no se toca.
+
 ---
 
 ## Instalar

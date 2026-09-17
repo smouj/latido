@@ -214,12 +214,14 @@ export const motion = {
   },
 }
 
-/** Medidas de estructura. El layout de 3 columnas vive aquí. */
+/** Medidas de estructura. El layout de 3 columnas vive aquí.
+ *  Son fluidas a propósito: la ventana se adapta al ancho disponible en lugar de
+ *  quedarse con columnas rígidas que obligan a hacer scroll. */
 export const layout = {
-  nav: '15.5rem',
-  rail: '20rem',
+  nav: 'clamp(13.5rem, 12.5vw, 16rem)',
+  rail: 'clamp(16rem, 21vw, 21rem)',
   header: '3.25rem',
-  content: '40rem',
+  content: 'clamp(32rem, 44vw, 44rem)',
   wide: '60rem',
   tabbar: '3.5rem',
   sidebarFilter: 'none',
@@ -256,6 +258,118 @@ export const data = {
   grid: 'color-mix(in srgb, currentColor 12%, transparent)',
 }
 
-export const tokens = { palette, theme, typography, space, radius, border, motion, layout, z, breakpoint, data }
+/**
+ * Los tres temas oficiales, uno por sistema.
+ *
+ * La marca no cambia —el ascua sigue siendo el acento y la tipografía de datos
+ * sigue siendo monoespaciada—, pero cada tema adopta las maneras del sistema en
+ * el que vive: radios, densidad, familia tipográfica, elevación y temperatura del
+ * neutro. Así, en Windows parece de Windows y en macOS de macOS, sin dejar de ser
+ * Latido. Las claves de color pisan a las del tema base.
+ */
+export const platforms = {
+  windows: {
+    label: 'Windows',
+    hint: 'Radios cortos, densidad compacta y tipografía Segoe: el aspecto de Windows 11.',
+    family: {
+      ui: '"Segoe UI Variable Text", "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif',
+    },
+    radius: { xs: '2px', sm: '4px', md: '6px', lg: '8px', xl: '10px' },
+    /** Menos aire: en Windows las listas son más densas. 1 = sin cambios. */
+    density: '0.94',
+    dark: {
+      bg: '#0F1113',
+      surface: '#16191C',
+      raised: '#1D2126',
+      inset: '#0A0C0E',
+      border: '#2A2F35',
+      borderStrong: '#3A414A',
+      text: '#F2F4F7',
+      textMuted: '#A8B0BA',
+      textFaint: '#7C848E',
+      controlHighlight: 'rgba(255, 255, 255, 0.07)',
+      shadow1: '0 1px 2px rgba(0, 0, 0, 0.34)',
+      shadow2: '0 8px 24px -10px rgba(0, 0, 0, 0.6)',
+    },
+    light: {
+      bg: '#F3F3F3',
+      surface: '#FBFBFB',
+      raised: '#FFFFFF',
+      inset: '#EAEAEA',
+      border: '#DCDCDC',
+      borderStrong: '#C4C4C4',
+      text: '#1B1B1B',
+      textMuted: '#5C6169',
+      textFaint: '#7E848C',
+      controlHighlight: 'rgba(255, 255, 255, 0.6)',
+      shadow1: '0 1px 2px rgba(0, 0, 0, 0.08)',
+      shadow2: '0 10px 28px -14px rgba(0, 0, 0, 0.24)',
+    },
+  },
+  macos: {
+    label: 'macOS',
+    hint: 'Radios generosos, aire y tipografía del sistema: el aspecto de macOS.',
+    family: {
+      ui: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+    },
+    radius: { xs: '5px', sm: '7px', md: '10px', lg: '14px', xl: '18px' },
+    density: '1',
+    dark: {
+      // Neutro cálido (el de siempre) y elevación suave y amplia.
+      controlHighlight: 'rgba(255, 255, 255, 0.05)',
+      shadow1: '0 1px 2px rgba(0, 0, 0, 0.4)',
+      shadow2: '0 10px 30px -12px rgba(0, 0, 0, 0.7)',
+    },
+    light: {
+      controlHighlight: 'rgba(255, 255, 255, 0.7)',
+      shadow1: '0 1px 2px rgba(28, 26, 23, 0.08)',
+      shadow2: '0 12px 32px -16px rgba(28, 26, 23, 0.28)',
+    },
+  },
+  linux: {
+    label: 'Linux',
+    hint: 'Plano y con filos marcados, tipografía Cantarell: el aspecto de GNOME.',
+    family: {
+      ui: 'Cantarell, Inter, Ubuntu, "Noto Sans", system-ui, "Helvetica Neue", Arial, sans-serif',
+    },
+    radius: { xs: '4px', sm: '6px', md: '9px', lg: '12px', xl: '16px' },
+    /** Un poco más de aire y de altura de fila. */
+    density: '1.04',
+    dark: {
+      bg: '#121212',
+      surface: '#1B1B1D',
+      raised: '#232326',
+      inset: '#0C0C0C',
+      border: '#303034',
+      borderStrong: '#3E3E44',
+      text: '#F6F5F4',
+      textMuted: '#B0AEAB',
+      textFaint: '#85837F',
+      controlHighlight: 'transparent',
+      // GNOME no abusa de la sombra: casi plana, con el filo haciendo el trabajo.
+      shadow1: 'none',
+      shadow2: '0 2px 8px -4px rgba(0, 0, 0, 0.4)',
+    },
+    light: {
+      bg: '#FAFAFA',
+      surface: '#FFFFFF',
+      raised: '#FFFFFF',
+      inset: '#F0F0F0',
+      border: '#DEDEDE',
+      borderStrong: '#C0C0C0',
+      text: '#1D1D1D',
+      textMuted: '#5E5E5E',
+      textFaint: '#838383',
+      controlHighlight: 'transparent',
+      shadow1: 'none',
+      shadow2: '0 2px 8px -4px rgba(0, 0, 0, 0.22)',
+    },
+  },
+}
+
+/** Identificador de tema de plataforma. `base` es el aspecto neutro de Latido. */
+export const PLATFORM_NAMES = ['windows', 'macos', 'linux']
+
+export const tokens = { palette, theme, platforms, PLATFORM_NAMES, typography, space, radius, border, motion, layout, z, breakpoint, data }
 
 export default tokens

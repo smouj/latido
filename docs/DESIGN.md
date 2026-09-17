@@ -193,3 +193,35 @@ local. Es el atajo que separa una app de escritorio de una página web.
    interfaz no lleva cadenas sueltas.
 4. ¿Es un estado? Reutiliza `StateBadge` antes de inventar otro.
 5. Comprueba el resultado en tema claro **y** oscuro, a 360 px y a 1440 px.
+
+## Tres temas, uno por sistema
+
+El sistema de diseño tiene una capa de tokens base y **tres temas de plataforma**
+que la ajustan. No son tres aspectos distintos: son el mismo Latido con las
+maneras del sistema en el que corre.
+
+| Token | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| `--radius-md` | 6px | 10px | 9px |
+| `--density` | 0.94 | 1 | 1.04 |
+| `--font-ui` | Segoe UI Variable | SF Pro / sistema | Cantarell |
+| `--color-bg` (oscuro) | `#0F1113` | `#131110` | `#121212` |
+| `--color-bg` (claro) | `#F3F3F3` | `#F6F2EA` | `#FAFAFA` |
+| `--color-shadow1` | sombra sutil por capas | sombra amplia y suave | casi ninguna |
+| `--color-control-highlight` | filo interior visible | filo tenue | transparente |
+
+Se aplican con `data-platform` en el elemento raíz, encima del tema claro/oscuro
+(`data-theme`), así que **ningún componente sabe en qué sistema está**: sigue
+leyendo `var(--color-surface)` y ya está. Se generan en
+`packages/tokens/scripts/build.mjs` y se comprueba su determinismo en CI.
+
+### Densidad y escalado
+
+- `--density` multiplica **solo el espacio** (`calc(var(--space-4) * var(--density))`),
+  nunca el tamaño del texto: la legibilidad no se negocia por plataforma.
+- Las columnas son fluidas (`clamp`) y la ventana no hace scroll: lo hacen las
+  columnas, cada una por su cuenta, con `scrollbar-gutter: stable` para que el
+  contenido no salte cuando aparece la barra.
+- El contexto lateral se retira a partir de 68rem y la barra lateral a partir de
+  56rem (con barra inferior en su lugar): antes se aprieta el contenido que se
+  quita contexto, pero nunca se obliga a hacer scroll horizontal.

@@ -2,7 +2,7 @@ import { memo } from 'react'
 
 import { ActionButton, Avatar, ExternalLink, SourceDot } from '@/components/primitives'
 import { Icon } from '@/components/Icon'
-import { useLatido } from '@/state/store'
+import { translationLookup, useLatido } from '@/state/store'
 import { clockTime, compactNumber, hostOf, relativeTime } from '@/lib/format'
 import type { Item } from '@latido/engine'
 
@@ -27,9 +27,19 @@ export const PostCard = memo(function PostCard({
   const lang = useLatido((state) => state.lang)
   const t = useLatido((state) => state.t)
   const bookmarked = useLatido((state) => state.bookmarkedIds.includes(item.id))
+  // Traducción: se busca por texto original y idioma de lectura.
+  const translatedTitle = useLatido((state) =>
+    item.title ? state.translations[translationLookup(state.lang, item.title)] : undefined,
+  )
+  const translatedBody = useLatido((state) =>
+    item.body ? state.translations[translationLookup(state.lang, item.body)] : undefined,
+  )
+  const sourceShown = useLatido((state) => Boolean(state.showOriginal[item.id]))
+  const hasTranslation = Boolean(translatedTitle ?? translatedBody)
 
-  const title = item.title?.trim()
-  const body = item.body?.trim()
+  // Con traducción disponible se muestra traducido; el original sigue a un clic.
+  const title = sourceShown ? item.title?.trim() : (translatedTitle ?? item.title?.trim())
+  const body = sourceShown ? item.body?.trim() : (translatedBody ?? item.body?.trim())
 
   const saved = (): void => {
     const store = useLatido.getState()
@@ -61,6 +71,19 @@ export const PostCard = memo(function PostCard({
               <Icon name="layers" size="sm" />
               {grouped}
             </span>
+          ) : null}
+          {hasTranslation ? (
+            <button
+              type="button"
+              className="post__translated"
+              onClick={(event) => {
+                event.stopPropagation()
+                useLatido.getState().toggleOriginal(item.id)
+              }}
+            >
+              <Icon name={sourceShown ? 'eye' : 'globe'} size="sm" />
+              {sourceShown ? t('translate.showTranslation') : t('translate.showOriginal')}
+            </button>
           ) : null}
         </div>
 

@@ -58,6 +58,9 @@ const staticVars = [
   ...Object.entries(staticGroups).flatMap(([prefix, group]) => flatten(group, prefix)),
   ...seriesVars,
   ['data-grid', tokens.data.grid],
+  // Densidad de fila: cada tema de plataforma la ajusta (1 = la de siempre).
+  ['density', '1'],
+  ['control-highlight', 'transparent'],
 ]
 
 const byName = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)
@@ -86,6 +89,38 @@ css += `\n/* Tokens de elevación y foco, resueltos sobre el tema activo. */\n:r
 
 css += `\n/* Compatibilidad con prefers-reduced-motion: la app sigue siendo usable. */\n@media (prefers-reduced-motion: reduce) {\n  :root {\n    --duration-instant: 0ms;\n    --duration-fast: 0ms;\n    --duration-base: 0ms;\n    --duration-slow: 0ms;\n    --duration-pulse: 0ms;\n  }\n}\n`
 
+// ── temas de plataforma ──────────────────────────────────────────────────────
+//
+// Tres temas oficiales, uno por sistema. Se aplican **encima** del tema base
+// (`data-theme`), así que un componente nunca necesita saber en qué sistema
+// corre: sigue leyendo `var(--color-surface)`.
+
+for (const [name, platform] of Object.entries(tokens.platforms)) {
+  const structural = [
+    ...flatten(platform.family, 'font'),
+    ...flatten(platform.radius, 'radius'),
+    ['density', platform.density],
+  ]
+
+  css += `\n/* Tema ${platform.label}: ${platform.hint} */\n[data-platform='${name}'] {\n${block(structural)}\n}\n`
+
+  for (const appearance of ['dark', 'light']) {
+    const overrides = platform[appearance]
+    if (!overrides) continue
+    const pairs = flatten(overrides, 'color')
+    if (pairs.length === 0) continue
+    css += `\n[data-platform='${name}'][data-theme='${appearance}'] {\n${block(pairs)}\n}\n`
+  }
+}
+
+// Sin elección explícita de tema, seguimos al sistema también con plataforma
+// fijada: así la primera pintura no destella en blanco.
+for (const [name, platform] of Object.entries(tokens.platforms)) {
+  const pairs = flatten(platform.light ?? {}, 'color')
+  if (pairs.length === 0) continue
+  css += `\n@media (prefers-color-scheme: light) {\n  [data-platform='${name}']:not([data-theme]) {\n${block(pairs, '    ')}\n  }\n}\n`
+}
+
 function bodyColors(name) {
   return colorVars(name)
 }
@@ -95,6 +130,19 @@ const json = JSON.stringify(
     generatedBy: 'packages/tokens/scripts/build.mjs',
     static: Object.fromEntries(staticVars),
     themes: { dark: Object.fromEntries(colorVars('dark')), light: Object.fromEntries(colorVars('light')) },
+    platforms: Object.fromEntries(
+      Object.entries(tokens.platforms).map(([name, platform]) => [
+        name,
+        {
+          label: platform.label,
+          density: platform.density,
+          radius: platform.radius,
+          font: platform.family,
+          dark: Object.fromEntries(flatten(platform.dark ?? {}, 'color')),
+          light: Object.fromEntries(flatten(platform.light ?? {}, 'color')),
+        },
+      ]),
+    ),
   },
   null,
   2,
@@ -105,4 +153,6 @@ await writeFile(join(outDir, 'tokens.css'), css, 'utf8')
 await writeFile(join(outDir, 'tokens.json'), `${json}\n`, 'utf8')
 
 const count = staticVars.length + colorVars('dark').length * 2
-console.log(`tokens: ${count} variables → dist/tokens.css, dist/tokens.json`)
+console.log(
+  `tokens: ${count} variables base + ${Object.keys(tokens.platforms).length} temas de plataforma → dist/tokens.css, dist/tokens.json`,
+)
