@@ -1,4 +1,5 @@
 import { Icon, type IconName } from '@/components/Icon'
+import { Logo } from '@/components/Logo'
 import { useLatido, type ViewKey } from '@/state/store'
 
 interface NavEntry {
@@ -33,7 +34,7 @@ export function Sidebar(): JSX.Element {
     <nav className="sidebar" aria-label={t('nav.primary')}>
       <button type="button" className="brand" onClick={() => setView('home')}>
         <span className="brand__mark">
-          <Icon name="pulse" />
+          <Logo size={30} />
         </span>
         <span className="stack stack--tight" style={{ gap: 0, alignItems: 'flex-start' }}>
           <span className="brand__name">latido</span>

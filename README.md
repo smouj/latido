@@ -1,4 +1,8 @@
-# Latido
+<p align="center">
+  <img src="docs/brand/logo.png" alt="Latido" width="112" height="112">
+</p>
+
+<h1 align="center">Latido</h1>
 
 > **El pulso de internet, en tu equipo.**
 > Mira por ti las redes abiertas, agrupa lo que se está diciendo sobre lo mismo y
@@ -180,7 +184,7 @@ pnpm build            # tokens → motor → interfaz
 pnpm build:desktop    # instalador (.deb, .AppImage, .exe, .dmg)
 pnpm verify           # verificación completa
 ./scripts/install-desktop.sh   # instalar en el menú y el escritorio (Linux)
-./scripts/make-icons.mjs       # regenerar iconos (PNG, ICO, ICNS)
+./scripts/make-icons.mjs       # regenerar la marca (iconos, SVG y logo de la interfaz)
 ```
 
 ---
@@ -205,6 +209,15 @@ pnpm verify           # verificación completa
    ascua. Sin morados de IA ni degradados de cristal. Ver [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ---
+
+## La marca
+
+El icono, el vector y el logo que ves en la interfaz salen del **mismo script**
+(`node scripts/make-icons.mjs`): una superelipse de esquina continua, un latido
+con su pico y su valle, y un juego completo de PNG (16→1024), `.ico` e `.icns`
+con transparencia real. No son tres dibujos parecidos: son el mismo. El trazo se
+engrosa en los tamaños pequeños, que es donde un icono se cae. Las reglas de uso
+están en [`docs/brand/`](docs/brand/README.md).
 
 ## Estado
 
