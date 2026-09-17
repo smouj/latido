@@ -7,6 +7,7 @@
 
 mod archive;
 mod secrets;
+mod session;
 mod state;
 
 use tauri::{AppHandle, Manager};
@@ -43,6 +44,10 @@ pub fn run() {
             secrets::secret_set,
             secrets::secret_get,
             secrets::secret_delete,
+            session::session_browsers,
+            session::session_import,
+            session::session_peek,
+            session::session_forget,
             notify,
             open_external,
         ])

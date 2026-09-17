@@ -19,9 +19,30 @@ export interface Connector {
   defaultPollMs: number
   /** Qué se puede configurar, para que Ajustes pinte el formulario solo. */
   options: { key: string; label: string; placeholder: string; defaultValue?: string }[]
+  /** Si la fuente puede necesitar la sesión del navegador, qué dominios. */
+  session?: { key: string; domains: string[]; label: string }
   fetchItems(config: SourceConfig, ctx: FetchContext): Promise<RawItem[]>
 }
 ```
+
+## Sesión del navegador
+
+Una fuente que responde 403 sin sesión declara qué dominios necesita:
+
+```ts
+session: {
+  key: 'reddit',                                        // nombre del secreto en el llavero
+  domains: ['www.reddit.com', 'oauth.reddit.com'],       // a dónde puede viajar la cabecera
+  label: 'Reddit responde 403 sin sesión…',              // se enseña tal cual en Ajustes
+}
+```
+
+El conector **no** lee cookies ni sabe de navegadores: solo recibe `ctx.session`,
+un proveedor que la app implementa. `http.ts` añade la cabecera `Cookie` en cada
+petición cuyo host esté entre los dominios declarados, y en ninguna otra. Si no
+hay proveedor —el motor en Node, o la app sin sesión importada— no se añade nada y
+todo funciona como antes. El cómo (DPAPI, AES-256-GCM, qué se guarda) está en
+[`SESSION.md`](SESSION.md).
 
 - `kind` tiene que existir en la unión `SourceKind`
   (`packages/engine/src/types.ts`).

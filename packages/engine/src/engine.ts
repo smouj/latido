@@ -11,7 +11,7 @@ import { Clusterer, type ClusterOptions } from './cluster'
 import { ENTITY_SEED, normalizeItem, type RawItem } from './normalize'
 import { CONNECTORS, defaultSourceConfigs } from './sources'
 import { demoRawItems } from './sources/demo'
-import type { Connector, FetchContext } from './sources/types'
+import type { Connector, FetchContext, SessionProvider } from './sources/types'
 import { MemoryStore, SNAPSHOT_VERSION, type ItemQuery, type StoreSnapshot } from './store'
 import { tokenize } from './text'
 import { TrendEngine, type TrendOptions } from './trend'
@@ -51,6 +51,7 @@ export class LatidoEngine {
   private readonly connectors: Record<string, Connector>
   private readonly dictionary: typeof ENTITY_SEED
   private fetchImpl: typeof fetch
+  private sessionProvider: SessionProvider | null = null
   private readonly clock: () => number
   private readonly retentionMs: number
   private readonly log: (message: string) => void
@@ -101,6 +102,15 @@ export class LatidoEngine {
    */
   setFetch(fetchImpl: typeof fetch): void {
     this.fetchImpl = fetchImpl
+  }
+
+  /**
+   * Declara quién sabe de sesiones del navegador. El motor no las lee ni las
+   * guarda: solo pregunta si hay una para esa fuente. Sin proveedor, todo sigue
+   * funcionando igual que antes.
+   */
+  setSession(provider: SessionProvider | null): void {
+    this.sessionProvider = provider
   }
 
   // ── ingesta ──────────────────────────────────────────────────────────────
@@ -172,6 +182,7 @@ export class LatidoEngine {
           now,
           limit: options.limit ?? 40,
           log: (message) => this.log(message),
+          ...(this.sessionProvider ? { session: this.sessionProvider } : {}),
         }
         try {
           const items = await connector.fetchItems(config, context)

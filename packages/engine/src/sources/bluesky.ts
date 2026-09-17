@@ -40,6 +40,15 @@ export const blueskyConnector: Connector = {
   // en directo (Jetstream, WebSocket) sí funciona en ambos.
   requiresProxy: true,
   defaultPollMs: 2 * 60 * 1000,
+  // La búsqueda pública de Bluesky no se autentica con cookies: su AppView pide
+  // un token Bearer. Se declara igualmente para poder mandar la sesión del
+  // navegador cuando exista, pero **no se promete** que arregle el 403: eso lo
+  // dice la interfaz con todas las letras.
+  session: {
+    key: 'bluesky',
+    domains: ['public.api.bsky.app', 'api.bsky.app'],
+    label: 'El AppView de Bluesky no acepta cookies: la búsqueda necesita token.',
+  },
   options: [
     { key: 'queries', label: 'Búsquedas', placeholder: 'openai, gta vi, rust lang', defaultValue: '' },
     { key: 'limit', label: 'Máximo por ciclo', placeholder: '25', defaultValue: '25' },

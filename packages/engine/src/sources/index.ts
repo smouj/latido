@@ -39,7 +39,14 @@ export function defaultSourceConfigs(): SourceConfig[] {
 }
 
 export { blueskyConnector, demoConnector, githubConnector, hackerNewsConnector, mastodonConnector, redditConnector, rssConnector }
-export type { Connector, FetchContext } from './types'
+export type {
+  Connector,
+  FetchContext,
+  SessionProvider,
+  SessionRequirement,
+  SourceSession,
+} from './types'
+export { hostMatchesDomain } from './types'
 export { parseFeed } from './rss'
 export { stripHtml, mapWithConcurrency } from './hackernews'
 export { demoRawItems, DEMO_STORIES, seededRandom } from './demo'

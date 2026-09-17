@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 import { Icon } from '@/components/Icon'
 import { sourceLabel } from '@/components/primitives'
 import { useLatido } from '@/state/store'
-import type { TranslateProviderKind } from '@latido/engine'
-import { compactNumber } from '@/lib/format'
-import { platformName, storageUsage } from '@/platform/bridge'
+import { CONNECTORS, type TranslateProviderKind } from '@latido/engine'
+import { compactNumber, relativeTime } from '@/lib/format'
+import { isDesktop, platformName, storageUsage } from '@/platform/bridge'
 
 /** Ajustes: apariencia, idioma, datos y transparencia sobre qué se guarda. */
 export function SettingsScreen(): JSX.Element {
@@ -39,13 +39,31 @@ export function SettingsScreen(): JSX.Element {
     clearTranslations,
     translationReady,
     translationError,
+    sessionBrowsers,
+    sessions,
+    sessionBusy,
+    sessionError,
+    loadSessionBrowsers,
+    importSession,
+    forgetSession,
+    setUseSession,
   } = useLatido()
 
   const [usage, setUsage] = useState(0)
+  const [sessionChoice, setSessionChoice] = useState<Record<string, string>>({})
 
   useEffect(() => {
     void storageUsage().then(setUsage)
   }, [counts.items])
+
+  // Los navegadores se detectan al abrir Ajustes: es cuando hacen falta y así no
+  // se toca el disco en cada arranque de la aplicación.
+  useEffect(() => {
+    void loadSessionBrowsers()
+  }, [loadSessionBrowsers])
+
+  const desktop = isDesktop()
+  const sessionSources = sources.filter((source) => Boolean(CONNECTORS[source.kind]?.session))
 
   const download = (): void => {
     const blob = new Blob([exportState()], { type: 'application/json' })
@@ -279,6 +297,129 @@ export function SettingsScreen(): JSX.Element {
       </section>
 
       <section className="section">
+        <span className="label">{t('session.title')}</span>
+        <p className="small muted">{t('session.hint')}</p>
+
+        {!desktop ? <p className="small warn-text">{t('session.desktopOnly')}</p> : null}
+        {desktop && sessionBrowsers.length === 0 ? (
+          <p className="small muted">{t('session.noBrowsers')}</p>
+        ) : null}
+
+        {sessionSources.map((source) => {
+          const requirement = CONNECTORS[source.kind]?.session
+          if (!requirement) return null
+          const summary = sessions[source.kind] ?? null
+          const firstAvailable = sessionBrowsers.find((profile) => profile.available)
+          const selected =
+            sessionChoice[source.kind] ??
+            (summary
+              ? `${summary.browser}|${summary.profile}`
+              : firstAvailable
+                ? `${firstAvailable.kind}|${firstAvailable.profile}`
+                : '')
+          const [browserKind, profileName] = selected.split('|')
+
+          return (
+            <article className="panel" key={source.kind}>
+              <div className="panel__head">
+                <span className="inline">
+                  <span className="chip__dot" style={{ background: `var(--source-${source.kind})` }} />
+                  <span className="row__title">{sourceLabel(source.kind)}</span>
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  className="switch"
+                  aria-checked={Boolean(source.useSession)}
+                  aria-label={t('session.use')}
+                  disabled={!desktop || !summary}
+                  onClick={() => setUseSession(source.kind, !source.useSession)}
+                />
+              </div>
+
+              <p className="small muted">{requirement.label}</p>
+              <p className="micro faint">
+                {t('session.domains')}: {requirement.domains.join(', ')}
+              </p>
+
+              <div className="row">
+                <span className="row__text">
+                  <span className="row__title">{t('session.browser')}</span>
+                  <span className="row__hint">
+                    {summary
+                      ? t('session.importedAt', {
+                          browser: summary.browser,
+                          profile: summary.profile,
+                          time: relativeTime(summary.importedAt, Date.now(), lang),
+                        })
+                      : t('session.none')}
+                  </span>
+                </span>
+                <select
+                  className="select"
+                  aria-label={t('session.browser')}
+                  value={selected}
+                  disabled={!desktop || sessionBrowsers.length === 0}
+                  onChange={(event) =>
+                    setSessionChoice({ ...sessionChoice, [source.kind]: event.target.value })
+                  }
+                >
+                  {sessionBrowsers.map((profile) => (
+                    <option
+                      key={`${profile.kind}-${profile.profile}`}
+                      value={`${profile.kind}|${profile.profile}`}
+                      disabled={!profile.available}
+                    >
+                      {profile.label} · {profile.profile}
+                      {profile.available ? '' : ` — ${profile.detail ?? ''}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="inline inline--wrap">
+                <button
+                  type="button"
+                  className="btn btn--primary btn--small"
+                  disabled={!desktop || sessionBusy === source.kind || !selected}
+                  onClick={() => void importSession(source.kind, browserKind ?? '', profileName ?? '')}
+                >
+                  <Icon name="download" size="sm" className={sessionBusy === source.kind ? 'spin' : ''} />
+                  {sessionBusy === source.kind ? t('session.importing') : t('session.import')}
+                </button>
+                {summary ? (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--small"
+                    onClick={() => void forgetSession(source.kind)}
+                  >
+                    <Icon name="trash" size="sm" />
+                    {t('session.forget')}
+                  </button>
+                ) : null}
+              </div>
+
+              {summary ? (
+                <p className="micro faint">
+                  {t('session.cookies', {
+                    count: summary.names.length,
+                    names: summary.names.slice(0, 10).join(', '),
+                  })}
+                </p>
+              ) : (
+                <p className="micro faint">{t('session.needsImport')}</p>
+              )}
+            </article>
+          )
+        })}
+
+        {sessionSources.length > 0 ? (
+          <p className="micro faint">{t('session.cookiesOnly')}</p>
+        ) : null}
+        {sessionError ? <p className="small warn-text">{sessionError}</p> : null}
+      </section>
+
+      <section className="section">
         <span className="label">{t('settings.data')}</span>
         <p className="small muted">{t('settings.dataHint')}</p>
 
@@ -403,7 +544,7 @@ export function SettingsScreen(): JSX.Element {
         <p className="small muted">{t('settings.aboutText')}</p>
         <div className="inline inline--wrap">
           <span className="tag">AGPL-3.0</span>
-          <span className="tag">v0.2.1</span>
+          <span className="tag">v0.2.2</span>
           <span className="tag">{platformName()}</span>
           <a
             className="tag"

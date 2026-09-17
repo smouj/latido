@@ -213,6 +213,11 @@ export interface SourceConfig {
   /** Última vez que respondió bien (epoch ms). */
   lastOkAt?: number
   lastError?: string
+  /**
+   * Usar la sesión del navegador para esta fuente. Se guarda con la sesión del
+   * usuario, no en el motor: el motor solo pregunta si la hay.
+   */
+  useSession?: boolean
 }
 
 export interface SessionState {

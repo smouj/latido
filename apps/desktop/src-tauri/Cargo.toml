@@ -1,6 +1,6 @@
 [package]
 name = "latido"
-version = "0.1.0"
+version = "0.2.2"
 description = "Latido — el pulso de internet, local-first"
 authors = ["smouj <smouj@users.noreply.github.com>"]
 edition = "2021"
@@ -26,6 +26,7 @@ strip = true
 
 [dependencies]
 keyring = "3.6.3"
+latido-chrome-session = { path = "crates/latido-chrome-session" }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"

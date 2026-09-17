@@ -143,15 +143,21 @@ web. El escritorio las lee con su propio cliente HTTP y no tiene ese problema. E
 | Fuente | Estado | Necesita | Tiempo real | Notas |
 | --- | --- | --- | --- | --- |
 | **Hacker News** | lista | nada | sondeo (3 min) | API oficial, sin cuota declarada; también va en el navegador |
-| **Bluesky / AT Protocol** | lista | nada | **Jetstream: flujo en directo** | El flujo (WebSocket) va en escritorio y navegador; la búsqueda necesita el escritorio |
+| **Bluesky / AT Protocol** | lista | nada | **Jetstream: flujo en directo** | El flujo (WebSocket) va en escritorio y navegador; la búsqueda necesita el escritorio y su AppView no acepta cookies |
 | **GitHub** | lista | nada (token opcional) | sondeo (8 min) | Repos nuevos por estrellas + releases vigilados |
-| **Reddit** | lista | escritorio o token | sondeo (5 min) | Respetando su `User-Agent` y sus límites |
+| **Reddit** | lista | escritorio, token o **tu sesión del navegador** | sondeo (5 min) | Respetando su `User-Agent` y sus límites; sin sesión responde 403 |
 | **Mastodon / Fediverso** | lista | escritorio | sondeo (5 min) | Etiquetas por instancia |
 | **RSS / Atom** | lista | escritorio | sondeo (10 min) | Cualquier feed, incluso de un proyecto propio |
 | **X (Twitter)** | **fuera de alcance** | — | — | No se automatiza fuera de su API autorizada |
 
 Añadir una fuente es un archivo y una línea en el registro: ver
 [`docs/CONNECTORS.md`](docs/CONNECTORS.md).
+
+Si una fuente responde 403 sin sesión, Latido puede reutilizar la que ya tienes
+abierta en el navegador: en **Ajustes → Sesión del navegador** eliges navegador y
+perfil, la app lee las cookies (solo lectura, cifradas con DPAPI), monta **una sola
+cabecera** y la guarda en el llavero del sistema. No se copia la base de datos y no
+se sube nada a ningún sitio: ver [`docs/SESSION.md`](docs/SESSION.md).
 
 ---
 

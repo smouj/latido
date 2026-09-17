@@ -12,7 +12,7 @@ import { isDesktop } from '@/platform/bridge'
  * Una app que no enseña esto está pidiendo confianza a ciegas.
  */
 export function SourcesScreen(): JSX.Element {
-  const { t, lang, sources, toggleSource, updateSourceOptions, poll, polling, toast } = useLatido()
+  const { t, lang, sources, toggleSource, updateSourceOptions, poll, polling, toast, sessions } = useLatido()
   const [openKind, setOpenKind] = useState<string | null>(null)
   const desktop = isDesktop()
 
@@ -33,6 +33,8 @@ export function SourcesScreen(): JSX.Element {
           const connector = CONNECTORS[source.kind]
           const open = openKind === source.kind
           const blocked = connector?.requiresProxy && !desktop
+          const needsSession = connector?.session
+          const sessionReady = Boolean(source.useSession && sessions[source.kind])
           return (
             <article className="panel" key={source.kind}>
               <div className="panel__head">
@@ -68,6 +70,12 @@ export function SourcesScreen(): JSX.Element {
                   </span>
                 ) : null}
                 {blocked ? <span className="tag state--fading">CORS</span> : null}
+                {needsSession ? (
+                  <span className={`tag ${sessionReady ? '' : 'state--fading'}`}>
+                    <Icon name="shield" size="sm" />
+                    {sessionReady ? t('sources.sessionOn') : t('sources.sessionOff')}
+                  </span>
+                ) : null}
                 <span className="grow" />
                 <button
                   type="button"

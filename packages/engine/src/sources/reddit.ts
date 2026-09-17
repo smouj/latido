@@ -41,6 +41,13 @@ export const redditConnector: Connector = {
   label: 'Reddit',
   requiresProxy: true,
   defaultPollMs: 5 * 60 * 1000,
+  // Reddit responde 403 a quien no lleva sesión. Con la sesión del navegador se
+  // lee la misma cuenta que el usuario ya tiene abierta, sin pedir nada nuevo.
+  session: {
+    key: 'reddit',
+    domains: ['www.reddit.com', 'oauth.reddit.com', 'reddit.com'],
+    label: 'Reddit responde 403 sin sesión: con la tuya se lee el feed real.',
+  },
   options: [
     { key: 'subreddits', label: 'Subreddits', placeholder: 'technology, programming, Games', defaultValue: 'technology,programming' },
     { key: 'sort', label: 'Orden', placeholder: 'new', defaultValue: 'new' },

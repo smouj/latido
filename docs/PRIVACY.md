@@ -36,6 +36,7 @@ Nada sale del dispositivo.
 | Escritorio (Tauri) | Archivo SQLite con publicaciones, temas, tendencias y series | Esquema `docs/DATA-MODEL.md`, aplicado por el shell |
 | Escritorio | Estado de la aplicación (sesión, reglas, instantánea del motor) | Fichero de estado propio (`state_save`) |
 | Escritorio | Token de una fuente, si decides ponerlo | Llavero del sistema operativo (`secret_set`); nunca en el archivo ni en la instantánea |
+| Escritorio | Sesión del navegador, si la importas | Llavero del sistema (`session.cookie.<fuente>`): **solo** la cabecera `Cookie` montada, los dominios, los nombres incluidos y la procedencia. La cabecera vive en memoria mientras la app está abierta |
 | Navegador | Instantánea del motor y sesión | IndexedDB (`latido` / `state` / `snapshot`) |
 | Navegador | Reserva si IndexedDB no está disponible | `localStorage`, clave `latido:snapshot` |
 
@@ -48,6 +49,28 @@ Consecuencias honestas de guardar así:
   guardas en un sitio compartido, estás compartiendo tu histórico.
 - El borrado real de SQLite puede dejar restos en el sistema de archivos hasta
   que el sistema reutilice esos bloques; Latido no hace sobrescritura segura.
+
+## Sesión del navegador
+
+Opcional y apagada por defecto. Si una fuente responde 403 sin sesión (hoy,
+Reddit), puedes reutilizar la que ya tienes abierta en tu navegador. Qué implica,
+con todas las letras:
+
+- Se lee la base de cookies de **un perfil** de Chrome, Edge, Brave, Chromium o
+  Vivaldi, **en solo lectura**. No se copia, no se modifica y no se toca nada
+  más: ni historial, ni contraseñas, ni marcadores.
+- La clave de cifrado está protegida con DPAPI: solo el usuario de Windows que
+  abrió el navegador puede descifrarla. Si falla, la app lo dice y no sigue.
+- Lo único que se guarda es la cabecera `Cookie` ya montada, en el llavero del
+  sistema. **No** se guarda en el archivo de estado, ni en el archivo SQLite, ni
+  en una copia exportada.
+- La cabecera sale **solo** hacia los dominios declarados por esa fuente, y solo
+  si tú enciendes la opción. La comprobación se hace en cada petición.
+- «Olvidar la sesión» borra la entrada del llavero y apaga la opción.
+- No se sube a ningún sitio: no hay servidor del proyecto con el que hablar.
+
+El detalle técnico (esquema `v10`, DPAPI, qué no se puede leer y por qué) está en
+[`SESSION.md`](SESSION.md).
 
 ## Qué sale a la red
 

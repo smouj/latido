@@ -1,6 +1,6 @@
 {
   "name": "@latido/desktop",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Latido para escritorio: Tauri 2, SQLite local y notificaciones del sistema.",
   "type": "module",

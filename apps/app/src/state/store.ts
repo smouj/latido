@@ -13,6 +13,7 @@ import { create } from 'zustand'
 import {
   LatidoEngine,
   MemoryStore,
+  CONNECTORS,
   createSessionState,
   defaultSourceConfigs,
   type AlertEvent,
@@ -23,12 +24,32 @@ import {
   type SessionState,
   type SourceConfig,
   type SourceKind,
+  type SessionProvider,
+  type SourceSession,
   type StoreSnapshot,
   type Trend,
 } from '@latido/engine'
 
 import { translate, type Language, type MessageKey } from '@/i18n'
-import { archiveSync, clearState, ensureWideWindow, isDesktop, loadState, notify, platformFetch, readSecret, saveState, storeSecret } from '@/platform/bridge'
+import {
+  archiveSync,
+  clearState,
+  ensureWideWindow,
+  isDesktop,
+  loadState,
+  notify,
+  platformFetch,
+  readSecret,
+  saveState,
+  sessionBrowsers,
+  sessionForget,
+  sessionHeader,
+  sessionImport,
+  sessionPeek,
+  storeSecret,
+  type BrowserProfile,
+  type SessionSummary,
+} from '@/platform/bridge'
 import { keywordsFrom, startRealtime, stopRealtime, type RealtimeStatus } from '@/state/realtime'
 import {
   TranslationQueue,
@@ -252,6 +273,14 @@ interface LatidoState {
   rules: AlertRule[]
   entities: Entity[]
   sources: SourceConfig[]
+  /** Perfiles de navegador detectados en este equipo (solo escritorio). */
+  sessionBrowsers: BrowserProfile[]
+  /** Resumen de la sesión importada por fuente: `null` si no hay ninguna. */
+  sessions: Record<string, SessionSummary | null>
+  /** Fuente cuya sesión se está importando ahora mismo. */
+  sessionBusy: string | null
+  /** Último fallo de importación, tal cual lo cuenta el escritorio. */
+  sessionError: string | null
   bookmarkedIds: string[]
   counts: { items: number; trends: number; alerts: number; clusters: number }
   toasts: Toast[]
@@ -284,6 +313,16 @@ interface LatidoState {
   watchEntity: (slug: string, watch?: boolean) => void
   toggleSource: (kind: SourceKind, enabled?: boolean) => void
   updateSourceOptions: (kind: SourceKind, options: Record<string, string | number | boolean | string[]>) => void
+  /** Lee los navegadores disponibles en el equipo (una vez por sesión basta). */
+  loadSessionBrowsers: () => Promise<void>
+  /** Importa la sesión del navegador para una fuente y la activa. */
+  importSession: (kind: SourceKind, browser: string, profile: string) => Promise<void>
+  /** Olvida la sesión importada de una fuente. */
+  forgetSession: (kind: SourceKind) => Promise<void>
+  /** Enciende o apaga el uso de la sesión sin borrarla. */
+  setUseSession: (kind: SourceKind, useSession: boolean) => void
+  /** Vuelve a leer del llavero las sesiones que estén activas. */
+  refreshSessions: () => Promise<void>
   addRule: (rule: Omit<AlertRule, 'createdAt'>) => void
   toggleRule: (ruleId: string) => void
   removeRule: (ruleId: string) => void
@@ -334,6 +373,10 @@ export const useLatido = create<LatidoState>((set, get) => ({
   rules: [],
   entities: [],
   sources: defaultSourceConfigs(),
+  sessionBrowsers: [],
+  sessions: {},
+  sessionBusy: null,
+  sessionError: null,
   bookmarkedIds: [],
   counts: { items: 0, trends: 0, alerts: 0, clusters: 0 },
   toasts: [],
@@ -373,6 +416,8 @@ export const useLatido = create<LatidoState>((set, get) => ({
     const bridgeFetch = await platformFetch()
     nativeFetch = bridgeFetch
     getEngine().setFetch(bridgeFetch)
+    getEngine().setSession(sessionBridge)
+    await get().refreshSessions()
 
     const current = get().sources
     const engineInstance = getEngine()
@@ -655,6 +700,95 @@ export const useLatido = create<LatidoState>((set, get) => ({
     if (kind === 'bluesky') get().startStream()
   },
 
+  loadSessionBrowsers: async () => {
+    set({ sessionBrowsers: await sessionBrowsers() })
+  },
+
+  /**
+   * Importa la sesión del navegador para una fuente.
+   *
+   * Si sale bien, deja la opción encendida y sondea de inmediato: el usuario
+   * quiere ver el feed, no un mensaje de confirmación. Si falla, se guarda el
+   * error **literal** del escritorio (por ejemplo, que el navegador tiene la base
+   * de datos abierta) y no se toca nada más.
+   */
+  importSession: async (kind, browser, profile) => {
+    const requirement = sessionRequirement(kind)
+    if (!requirement) return
+    if (!isDesktop()) {
+      set({ sessionError: get().t('session.desktopOnly') })
+      return
+    }
+
+    set({ sessionBusy: kind, sessionError: null })
+    const { summary, error } = await sessionImport(browser, profile, requirement.key, requirement.domains)
+    if (error || !summary) {
+      importedSessions.delete(requirement.key)
+      set({ sessionBusy: null, sessionError: error ?? get().t('session.failed') })
+      return
+    }
+
+    const loaded = await loadSessionInto(kind, { browser, profile })
+    if (!loaded) {
+      set({ sessionBusy: null, sessionError: get().t('session.failed') })
+      return
+    }
+
+    const config = getEngine().sourceConfigs.get(kind)
+    if (config) config.useSession = true
+    set({
+      sessionBusy: null,
+      sessionError: null,
+      sessions: { ...get().sessions, [kind]: summary },
+    })
+    get().sync()
+    scheduleSave(get)
+    get().toast(get().t('session.imported', { count: summary.names.length }), 'ok')
+    await get().poll([kind])
+  },
+
+  forgetSession: async (kind) => {
+    const requirement = sessionRequirement(kind)
+    if (!requirement) return
+    importedSessions.delete(requirement.key)
+    await sessionForget(requirement.key)
+    const config = getEngine().sourceConfigs.get(kind)
+    if (config) config.useSession = false
+    set({
+      sessions: { ...get().sessions, [kind]: null },
+      sessionError: null,
+    })
+    get().sync()
+    scheduleSave(get)
+    get().toast(get().t('session.forgotten'), 'info')
+  },
+
+  setUseSession: (kind, useSession) => {
+    const config = getEngine().sourceConfigs.get(kind)
+    if (!config) return
+    config.useSession = useSession
+    if (useSession) void loadSessionInto(kind)
+    get().sync()
+    scheduleSave(get)
+    if (config.enabled) void get().poll([kind])
+  },
+
+  refreshSessions: async () => {
+    const summaries: Record<string, SessionSummary | null> = {}
+    for (const config of getEngine().sourceConfigs.values()) {
+      const requirement = sessionRequirement(config.kind)
+      if (!requirement) continue
+      const summary = await sessionPeek(requirement.key)
+      summaries[config.kind] = summary
+      if (config.useSession && summary) {
+        await loadSessionInto(config.kind, { browser: summary.browser, profile: summary.profile })
+      } else {
+        importedSessions.delete(requirement.key)
+      }
+    }
+    set({ sessions: summaries })
+  },
+
   addRule: (rule) => {
     getEngine().addRule(rule)
     getEngine().recompute()
@@ -890,6 +1024,61 @@ function scheduleArchive(get: () => LatidoState): void {
 
 /** Cliente HTTP en uso: en el escritorio es el nativo (sin CORS ni CSP). */
 let nativeFetch: typeof fetch = globalThis.fetch
+
+// ── sesión del navegador ────────────────────────────────────────────────────
+
+/**
+ * Sesiones importadas y activas, por clave de fuente.
+ *
+ * La cabecera `Cookie` vive **solo en memoria**: se lee del llavero al arrancar
+ * y cuando el usuario importa, y se suelta al cerrar la aplicación. No se guarda
+ * en el archivo de estado ni se manda a ningún sitio que no sean los dominios
+ * declarados por la fuente.
+ */
+const importedSessions = new Map<string, SourceSession>()
+
+/** Necesidad de sesión declarada por el conector de una fuente. */
+function sessionRequirement(kind: SourceKind): { key: string; domains: string[] } | null {
+  const requirement = CONNECTORS[kind]?.session
+  if (!requirement) return null
+  return { key: requirement.key, domains: requirement.domains }
+}
+
+/**
+ * Puente que el motor consulta. Devuelve sesión **solo** si el usuario la ha
+ * activado para esa fuente y hay cookies importadas: sin lo uno o lo otro, la
+ * petición sale anónima, como siempre.
+ */
+const sessionBridge: SessionProvider = {
+  sessionFor: (source) => {
+    const config = getEngine().sourceConfigs.get(source)
+    if (!config?.useSession) return null
+    const requirement = sessionRequirement(source)
+    if (!requirement) return null
+    return importedSessions.get(requirement.key) ?? null
+  },
+}
+
+/** Lee del llavero la sesión de una fuente y la deja lista para usarse. */
+async function loadSessionInto(
+  kind: SourceKind,
+  options: { browser?: string; profile?: string } = {},
+): Promise<boolean> {
+  const requirement = sessionRequirement(kind)
+  if (!requirement) return false
+  const header = await sessionHeader(requirement.key)
+  if (!header) {
+    importedSessions.delete(requirement.key)
+    return false
+  }
+  const origin = options.browser && options.profile ? `${options.browser} · ${options.profile}` : ''
+  importedSessions.set(requirement.key, {
+    header,
+    domains: requirement.domains,
+    origin,
+  })
+  return true
+}
 
 /** Escala efectiva según lo que diga el sistema o la elección del usuario. */
 function effectiveScale(choice: UiScaleChoice): number {

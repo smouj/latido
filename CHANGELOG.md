@@ -3,6 +3,42 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado [semántico](https://semver.org/lang/es/).
 
+## [0.2.2] — 2026-09-17
+
+### Añadido
+- **Sesión del navegador**: las fuentes que hoy responden 403 sin sesión pueden
+  reutilizar la que ya tienes abierta en el navegador. En Ajustes hay una sección
+  por fuente con «Usar mi sesión del navegador», el navegador y el perfil
+  elegidos y los dominios afectados a la vista.
+  - Crate propio `latido-chrome-session` (Rust, lógica pura y probada): lee
+    `Local State`, descifra la clave con **DPAPI** y los valores con
+    **AES-256-GCM** (`v10`), empareja dominios como manda RFC 6265 y monta una
+    sola cabecera `Cookie`. El acceso al sistema queda reducido a una llamada.
+  - En el llavero del sistema se guarda **solo la cabecera montada**, nunca la
+    base de datos de cookies, que se abre en solo lectura.
+  - Los errores se cuentan en español y sin inventar datos: clave de otro
+    perfil, base de datos bloqueada porque el navegador sigue abierto, esquema
+    `v20` (Chrome 127+) que exige la identidad de la aplicación.
+  - La cabecera sale **solo** hacia los dominios declarados por la fuente: la
+    comprobación se hace en cada petición, no al construir la sesión.
+- `docs/SESSION.md`: cómo funciona el descifrado, qué se guarda y qué no.
+- 8 pruebas nuevas en el motor (dominios, cabecera ausente, cabecera que no
+  viaja a otro dominio) y 16 en el crate de Rust.
+
+### Corregido
+- El rail lateral se desplaza en vez de aplastar sus secciones.
+
+### Notas
+- **Bluesky no se arregla con cookies**: su AppView (`public.api.bsky.app`)
+  responde 403 a la búsqueda anónima y autentica con token `Bearer`, no con
+  cookies. Comprobado: `getProfile` responde 200, `getTimeline` responde 401
+  (pide token) y la misma búsqueda pasa a 200 desde otra red. La interfaz lo dice
+  con todas las letras en lugar de prometer que la sesión lo resuelve.
+- Reddit responde **403 sin sesión** (comprobado con `curl` con y sin
+  `User-Agent` de navegador); con la sesión importada es la vía que se espera
+  arreglada, pero no se ha podido verificar de extremo a extremo en esta máquina
+  porque Chrome mantiene su base de cookies bloqueada en exclusiva.
+
 ## [0.2.0] — 2026-09-17
 
 ### Añadido

@@ -299,3 +299,105 @@ export async function archiveExport(): Promise<string | null> {
     return null
   }
 }
+
+// ── sesión del navegador (solo escritorio) ─────────────────────────────────
+
+/** Un perfil de navegador con sesión guardada, tal y como lo ve el escritorio. */
+export interface BrowserProfile {
+  kind: string
+  label: string
+  profile: string
+  cookiesDb: string
+  localState: string
+  available: boolean
+  detail: string | null
+}
+
+/** Lo que se sabe de una sesión importada. La cabecera `Cookie` no viaja aquí. */
+export interface SessionSummary {
+  domains: string[]
+  names: string[]
+  browser: string
+  profile: string
+  importedAt: number
+}
+
+/** Clave del secreto en el llavero. Una por fuente. */
+export const sessionSecretKey = (key: string): string => `session.cookie.${key}`
+
+/**
+ * Navegadores y perfiles que se pueden leer en este equipo.
+ *
+ * Fuera del escritorio devuelve lista vacía: la sesión del navegador se lee con
+ * el cliente nativo y no se finge que existe cuando no está.
+ */
+export async function sessionBrowsers(): Promise<BrowserProfile[]> {
+  if (!DESKTOP) return []
+  try {
+    return await invoke<BrowserProfile[]>('session_browsers')
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Importa las cookies de un perfil para los dominios indicados.
+ *
+ * Devuelve el error tal cual lo escribe el escritorio (en español y explicado)
+ * en lugar de tragárselo: cuando la base de datos está bloqueada porque el
+ * navegador sigue abierto, el usuario tiene que enterarse.
+ */
+export async function sessionImport(
+  browser: string,
+  profile: string,
+  key: string,
+  domains: string[],
+): Promise<{ summary: SessionSummary | null; error: string | null }> {
+  if (!DESKTOP) {
+    return { summary: null, error: 'importar la sesión necesita la aplicación de escritorio' }
+  }
+  try {
+    const summary = await invoke<SessionSummary>('session_import', { browser, profile, key, domains })
+    return { summary, error: null }
+  } catch (error) {
+    return { summary: null, error: String(error) }
+  }
+}
+
+/** Resumen de la sesión guardada, sin la cabecera. */
+export async function sessionPeek(key: string): Promise<SessionSummary | null> {
+  if (!DESKTOP) return null
+  try {
+    return await invoke<SessionSummary | null>('session_peek', { key })
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Cabecera `Cookie` de la sesión importada, leída del llavero justo cuando hace
+ * falta. Se queda en memoria el tiempo de la sesión de la app y no se escribe en
+ * ningún sitio.
+ */
+export async function sessionHeader(key: string): Promise<string | null> {
+  if (!DESKTOP) return null
+  try {
+    const serialized = await invoke<string | null>('secret_get', { key: sessionSecretKey(key) })
+    if (!serialized) return null
+    const parsed = JSON.parse(serialized) as { header?: string }
+    return typeof parsed.header === 'string' && parsed.header.length > 0 ? parsed.header : null
+  } catch {
+    return null
+  }
+}
+
+/** Olvida la sesión importada de una fuente. */
+export async function sessionForget(key: string): Promise<boolean> {
+  if (!DESKTOP) return false
+  try {
+    await invoke('session_forget', { key })
+    return true
+  } catch {
+    return false
+  }
+}

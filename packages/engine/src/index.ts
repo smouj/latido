@@ -69,4 +69,8 @@ export {
   stripHtml,
   type Connector,
   type FetchContext,
+  type SessionProvider,
+  type SessionRequirement,
+  type SourceSession,
+  hostMatchesDomain,
 } from './sources'

@@ -1,0 +1,30 @@
+[package]
+name = "latido-chrome-session"
+version = "0.2.2"
+description = "Lectura de la sesión del navegador (cookies de la familia Chromium) para reutilizarla en Latido"
+authors = ["smouj <smouj@users.noreply.github.com>"]
+edition = "2021"
+rust-version = "1.77.2"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/smouj/latido"
+publish = false
+
+# Lógica pura y comprobable: parseo de `Local State`, descifrado AES-256-GCM de
+# los valores `v10`, emparejado de dominios y construcción de la cabecera
+# `Cookie`. No toca el sistema operativo a propósito: DPAPI entra como una
+# función inyectada, así que esto se puede probar en cualquier plataforma y el
+# pegamento de Windows queda en una sola función diminuta.
+[dependencies]
+aes-gcm = "0.10.3"
+base64 = "0.22.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.10.9"
+
+# DPAPI (`CryptUnprotectData`) solo existe en Windows; fuera se compila una
+# alternativa que devuelve un error explicado.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.60", features = [
+    "Win32_Foundation",
+    "Win32_Security_Cryptography",
+] }
