@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Latido
+GenericName=Lector del pulso de internet
+Comment=Mira por ti las redes abiertas, agrupa lo que se está diciendo y te avisa solo cuando algo empieza a crecer
+Exec=latido
+TryExec=latido
+Icon=latido
+Terminal=false
+Categories=News;Network;InstantMessaging;
+Keywords=noticias;tendencias;radar;rss;bluesky;hackernews;local;
+StartupNotify=true
+StartupWMClass=Latido

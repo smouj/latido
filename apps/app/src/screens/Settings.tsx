@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { Icon } from '@/components/Icon'
+import { sourceLabel } from '@/components/primitives'
 import { useLatido } from '@/state/store'
 import { compactNumber } from '@/lib/format'
 import { platformName, storageUsage } from '@/platform/bridge'
@@ -22,6 +23,10 @@ export function SettingsScreen(): JSX.Element {
     toast,
     demoMode,
     loadSample,
+    realtime,
+    realtimeDetail,
+    lastPollAt,
+    sources,
   } = useLatido()
 
   const [usage, setUsage] = useState(0)
@@ -135,6 +140,18 @@ export function SettingsScreen(): JSX.Element {
 
         <div className="row">
           <span className="row__text">
+            <span className="row__title">{t('settings.realtime')}</span>
+            <span className="row__hint">
+              {t(`realtime.${realtime}` as 'realtime.live')}
+              {realtimeDetail ? ` · ${realtimeDetail}` : ''}
+              {lastPollAt ? ` · ${t('app.updated', { time: new Date(lastPollAt).toLocaleTimeString() })}` : ''}
+            </span>
+          </span>
+          <span className="tag">Jetstream</span>
+        </div>
+
+        <div className="row">
+          <span className="row__text">
             <span className="row__title">{t('settings.storage')}</span>
             <span className="row__hint">
               {t('settings.storageDetail', {
@@ -165,10 +182,12 @@ export function SettingsScreen(): JSX.Element {
               }}
             />
           </label>
-          <button type="button" className="btn btn--ghost btn--small" onClick={() => loadSample()}>
-            <Icon name="sparkles" size="sm" />
-            {t('app.demo')}
-          </button>
+          {import.meta.env.DEV ? (
+            <button type="button" className="btn btn--ghost btn--small" onClick={() => loadSample()}>
+              <Icon name="sparkles" size="sm" />
+              {t('settings.demoDev')}
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn--ghost btn--small"
@@ -179,6 +198,23 @@ export function SettingsScreen(): JSX.Element {
             <Icon name="trash" size="sm" />
             {t('settings.clear')}
           </button>
+        </div>
+      </section>
+
+      <section className="section">
+        <span className="label">{t('sources.health')}</span>
+        <p className="small muted">
+          {t('realtime.hintOff')}
+        </p>
+        <div className="kindlist">
+          {sources
+            .filter((source) => source.enabled)
+            .map((source) => (
+              <span className="tag" key={source.kind}>
+                {sourceLabel(source.kind)}
+                <span className={source.lastOkAt ? 'delta' : 'faint'}>{source.lastOkAt ? 'ok' : '—'}</span>
+              </span>
+            ))}
         </div>
       </section>
 

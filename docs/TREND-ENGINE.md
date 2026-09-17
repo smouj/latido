@@ -66,6 +66,22 @@ score = 0,40 · jaccard(tokens del item, keywords del tema)
 - **Fusión (`merge`) y retirada (`evict`):** se ejecutan desde
   `LatidoEngine.consolidate()`, no en cada item.
 
+### Título del tema
+
+Un tema se llama por su **entidad** (`OpenAI`, `GTA VI`) o, si no tiene, por el
+**titular del item más representativo** (el que más se parece a su centroide).
+Concatenar palabras clave producía nombres ilegibles del estilo
+«associate · become · canada»; el titular real de alguien se lee de un tirón y es
+trazable hasta su origen.
+
+### Qué llega al Radar
+
+Solo los temas **con actividad en la ventana**: un tema cuyas publicaciones son
+más viejas de 30 minutos no está creciendo, es una historia antigua, y aparecería
+como «0 publicaciones». Además, tras cada recálculo se retiran los temas que se
+quedaron sin publicaciones en el archivo (por retención o por caducidad), de modo
+que los contadores no pueden decir que hay más temas que publicaciones.
+
 ## 2. computeTrend: medir si crece
 
 ### Ventanas

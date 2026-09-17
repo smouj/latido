@@ -2,45 +2,77 @@ import { Icon } from '@/components/Icon'
 import { Sparkline, sourceLabel } from '@/components/primitives'
 import { TrendRailRow } from '@/components/TrendCard'
 import { useLatido } from '@/state/store'
-import { compactNumber } from '@/lib/format'
+import { compactNumber, relativeTime } from '@/lib/format'
 
 /**
- * Columna derecha: el contexto que no cabe en el flujo. Tendencias, lo que
- * emerge, reparto por red y —si hace falta— el aviso de que son datos de
- * ejemplo. Nunca compite con el centro: informa de un vistazo.
+ * Columna derecha: el contexto que no cabe en el flujo. Estado real de la
+ * conexión, tendencias, lo que emerge y el reparto por red. Nunca compite con el
+ * centro: informa de un vistazo.
  */
 export function Rail(): JSX.Element {
-  const { t, trends, items, entities, demoMode, lang, selectTrend } = useLatido()
+  const { t, trends, items, entities, lang, selectTrend, realtime, lastPollAt, sources, counts } = useLatido()
 
   const top = trends.slice(0, 5)
-  const emerging = trends
-    .filter((trend) => trend.state === 'emerging' || trend.state === 'breaking')
-    .slice(0, 3)
+  const emerging = trends.filter((trend) => trend.state === 'emerging' || trend.state === 'breaking').slice(0, 3)
   const watched = entities.filter((entity) => entity.watch).slice(0, 4)
 
   const distribution = new Map<string, number>()
   for (const item of items) distribution.set(item.source, (distribution.get(item.source) ?? 0) + 1)
   const total = items.length || 1
   const shares = [...distribution.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+  const enabled = sources.filter((source) => source.enabled)
 
   return (
     <aside className="rail" aria-label={t('nav.explore')}>
-      {demoMode ? (
-        <div className="panel">
-          <span className="label">{t('app.demo')}</span>
-          <p className="small muted">{t('app.demoNotice')}</p>
-        </div>
+      {counts.items === 0 ? (
+        <section className="panel">
+          <div className="panel__head">
+            <span className="label">{t('app.firstRun')}</span>
+            <Icon name="activity" size="sm" />
+          </div>
+          <p className="small muted">{t('app.firstRunHint')}</p>
+        </section>
       ) : null}
 
       <section className="panel panel--flat">
         <div className="panel__head">
-          <span className="label">{t('radar.title')}</span>
-          <span className="mono micro faint">{trends.length}</span>
+          <span className="label">{t('sources.health')}</span>
+          <span className={`state ${realtime === 'live' ? 'state--rising' : 'state--quiet'}`}>
+            {t(`realtime.${realtime}` as 'realtime.live')}
+          </span>
         </div>
-        {top.map((trend, index) => (
-          <TrendRailRow key={trend.id} trend={trend} rank={index + 1} />
-        ))}
+        {enabled.length === 0 ? (
+          <p className="small faint">{t('sources.disabled')}</p>
+        ) : (
+          enabled.slice(0, 6).map((source) => (
+            <div className="rail-trend" key={source.kind}>
+              <span className="grow inline">
+                <span className="chip__dot" style={{ background: `var(--source-${source.kind})` }} />
+                <span className="rail-trend__title">{sourceLabel(source.kind)}</span>
+              </span>
+              <span className="rail-trend__meta">
+                {source.lastError
+                  ? t('app.offline')
+                  : source.lastOkAt
+                    ? relativeTime(source.lastOkAt, Date.now(), lang)
+                    : '—'}
+              </span>
+            </div>
+          ))
+        )}
       </section>
+
+      {top.length > 0 ? (
+        <section className="panel panel--flat">
+          <div className="panel__head">
+            <span className="label">{t('radar.title')}</span>
+            <span className="mono micro faint">{trends.length}</span>
+          </div>
+          {top.map((trend, index) => (
+            <TrendRailRow key={trend.id} trend={trend} rank={index + 1} />
+          ))}
+        </section>
+      ) : null}
 
       {emerging.length > 0 ? (
         <section className="panel">
@@ -93,6 +125,11 @@ export function Rail(): JSX.Element {
             </div>
           ))
         )}
+        {lastPollAt ? (
+          <span className="micro faint">
+            {t('app.updated', { time: relativeTime(lastPollAt, Date.now(), lang) })}
+          </span>
+        ) : null}
       </section>
 
       <footer className="rail-foot">

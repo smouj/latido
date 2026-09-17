@@ -29,6 +29,7 @@ import {
 
 import { translate, type Language, type MessageKey } from '@/i18n'
 import { archiveSync, clearState, isDesktop, loadState, notify, platformFetch, saveState } from '@/platform/bridge'
+import { keywordsFrom, startRealtime, stopRealtime, type RealtimeStatus } from '@/state/realtime'
 
 export type ViewKey =
   | 'home'
@@ -92,8 +93,14 @@ export function getEngine(): LatidoEngine {
 interface LatidoState {
   ready: boolean
   polling: boolean
+  /** `true` solo si se han cargado datos de ejemplo a mano (ajustes de desarrollo). */
   demoMode: boolean
   lastPollAt: number | null
+  /** Estado del flujo en directo (Jetstream). La app no finge: si no hay flujo, se dice. */
+  realtime: RealtimeStatus
+  realtimeDetail: string | null
+  /** Último error de sondeo, para que Fuentes y la cabecera puedan explicarlo. */
+  pollError: string | null
   view: ViewKey
   theme: ThemeChoice
   lang: Language
@@ -118,6 +125,8 @@ interface LatidoState {
   init: () => Promise<void>
   poll: (kinds?: SourceKind[]) => Promise<void>
   sync: () => void
+  startStream: () => void
+  stopStream: () => void
   setView: (view: ViewKey) => void
   setTheme: (theme: ThemeChoice) => void
   setLang: (lang: Language) => void
@@ -157,6 +166,9 @@ export const useLatido = create<LatidoState>((set, get) => ({
   polling: false,
   demoMode: false,
   lastPollAt: null,
+  realtime: 'off',
+  realtimeDetail: null,
+  pollError: null,
   view: 'home',
   theme: 'system',
   lang: 'es',
@@ -211,17 +223,53 @@ export const useLatido = create<LatidoState>((set, get) => ({
     engineInstance.seedEntities()
     engineInstance.onUpdate(() => get().sync())
 
-    const empty = get().counts.items === 0
-    if (empty) {
-      get().loadSample()
-    } else {
-      engineInstance.recompute()
-    }
-
+    // Nada de contenido inventado: si no hay datos, se piden a las fuentes
+    // reales. Si alguna no responde, la interfaz lo dice en vez de rellenar el
+    // hueco con ejemplos.
+    engineInstance.recompute()
     set({ ready: true })
     get().sync()
 
-    void get().poll()
+    void get().poll().then(() => get().startStream())
+  },
+
+  /**
+   * Conecta el flujo en directo de Bluesky. Solo si hay términos que vigilar:
+   * el flujo completo son miles de publicaciones por segundo y no aporta nada.
+   */
+  startStream: () => {
+    const engineInstance = getEngine()
+    const bluesky = engineInstance.sourceConfigs.get('bluesky')
+    if (!bluesky?.enabled) {
+      stopRealtime()
+      set({ realtime: 'off', realtimeDetail: null })
+      return
+    }
+
+    const keywords = keywordsFrom({
+      queries: String(bluesky.options['queries'] ?? '').split(','),
+      watchlist: [],
+      entities: get().entities,
+    })
+
+    startRealtime({
+      keywords,
+      langs: ['es', 'en'],
+      fetchImpl: globalThis.fetch,
+      onBatch: (raw) => {
+        if (raw.length === 0) return
+        engineInstance.ingest(raw)
+        engineInstance.recompute()
+        get().sync()
+        scheduleSave(get)
+      },
+      onStatus: (status, detail) => set({ realtime: status, realtimeDetail: detail ?? null }),
+    })
+  },
+
+  stopStream: () => {
+    stopRealtime()
+    set({ realtime: 'off', realtimeDetail: null })
   },
 
   /** Sondea todas las fuentes activas y avisa de lo que merezca la pena. */
@@ -232,10 +280,13 @@ export const useLatido = create<LatidoState>((set, get) => ({
       const result = await getEngine().poll(kinds)
       const trends = getEngine().recompute()
       if (!get().demoMode) announceNewTrends(trends, get())
-      set({ lastPollAt: Date.now() })
-      if (result.errors.length > 0 && import.meta.env.DEV) {
-        console.info('[latido] errores de fuentes', result.errors)
-      }
+      const failed = result.errors.filter((error) => error.source !== 'demo')
+      set({
+        lastPollAt: Date.now(),
+        pollError: failed.length > 0 ? failed[0]?.message ?? null : null,
+      })
+    } catch (error) {
+      set({ pollError: (error as Error).message })
     } finally {
       set({ polling: false })
       get().sync()
@@ -358,6 +409,8 @@ export const useLatido = create<LatidoState>((set, get) => ({
     get().sync()
     scheduleSave(get)
     if (config.enabled) void get().poll([kind])
+    // El flujo en directo depende de que Bluesky esté encendida y tenga términos.
+    if (kind === 'bluesky') get().startStream()
   },
 
   updateSourceOptions: (kind, options) => {
@@ -367,6 +420,7 @@ export const useLatido = create<LatidoState>((set, get) => ({
     get().sync()
     scheduleSave(get)
     void get().poll([kind])
+    if (kind === 'bluesky') get().startStream()
   },
 
   addRule: (rule) => {

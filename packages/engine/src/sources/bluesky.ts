@@ -35,7 +35,10 @@ interface SearchResponse {
 export const blueskyConnector: Connector = {
   kind: 'bluesky',
   label: 'Bluesky',
-  requiresProxy: false,
+  // La API pública de búsqueda no manda cabeceras CORS: desde una página web el
+  // navegador la bloquea. El escritorio la lee con su cliente nativo. El flujo
+  // en directo (Jetstream, WebSocket) sí funciona en ambos.
+  requiresProxy: true,
   defaultPollMs: 2 * 60 * 1000,
   options: [
     { key: 'queries', label: 'Búsquedas', placeholder: 'openai, gta vi, rust lang', defaultValue: '' },

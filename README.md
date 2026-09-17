@@ -6,8 +6,10 @@
 
 [![CI](https://github.com/smouj/latido/actions/workflows/ci.yml/badge.svg)](https://github.com/smouj/latido/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/smouj/latido/actions/workflows/codeql.yml/badge.svg)](https://github.com/smouj/latido/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/smouj/latido?include_prereleases&label=descarga)](https://github.com/smouj/latido/releases)
 [![Licencia: AGPL-3.0](https://img.shields.io/badge/licencia-AGPL--3.0-or-later-blue.svg)](LICENSE)
 [![Estado: alfa](https://img.shields.io/badge/estado-alfa-orange.svg)](docs/ROADMAP.md)
+[![Plataformas](https://img.shields.io/badge/plataformas-linux%20%7C%20windows%20%7C%20macos-lightgrey.svg)](#instalar)
 
 ---
 
@@ -21,6 +23,11 @@ no como doscientas publicaciones sueltas.
 X te enseña lo que su algoritmo quiere que veas.
 **Latido te enseña qué está pasando de verdad en las fuentes que tú has decidido observar.**
 
+**Y no se inventa nada.** No hay titulares de relleno ni historias de ejemplo: lo
+que aparece en pantalla viene de Hacker News, Bluesky, GitHub, Reddit, Mastodon o
+de tus propios feeds, y cada item lleva su enlace y su hora. Si una fuente falla,
+se dice; si no hay nada, la pantalla lo dice en vez de rellenar el hueco.
+
 | Pregunta | Respuesta de Latido |
 | --- | --- |
 | ¿Qué está pasando ahora mismo? | Cronología con los temas agrupados, no items sueltos |
@@ -32,20 +39,42 @@ X te enseña lo que su algoritmo quiere que veas.
 
 ## Cómo se ve
 
+Todas las capturas están tomadas de la aplicación en marcha con **datos reales**
+(Hacker News, Bluesky y GitHub), sin retocar.
+
 ![Inicio](docs/screenshots/inicio.png)
-*Inicio: la cronología con temas agrupados, el estado del sondeo y el reparto por red.*
+*Inicio: la cronología con los temas agrupados, el estado de cada fuente y el reparto por red.*
 
 ![Radar](docs/screenshots/radar.png)
-*Radar: qué crece, cuánto y por qué — con la serie temporal y el reparto por red.*
+*Radar: qué crece, cuánto y por qué — con la serie temporal, el reparto por red y el motivo en una frase.*
 
 ![Tema claro](docs/screenshots/tema-claro.png)
 *Tema claro «papel»: la misma información sin la estética de terminal.*
 
 ---
 
-## Empezar
+## Instalar
 
-### Con el escritorio (recomendado)
+### Desde el icono del escritorio (recomendado)
+
+1. Descarga el instalador de tu sistema en **[Releases](https://github.com/smouj/latido/releases)**:
+   `.exe` (Windows), `.deb`/`.AppImage` (Linux) o `.dmg` (macOS).
+2. Instálalo y ábrelo como cualquier otra aplicación: aparece en el menú y crea su icono.
+
+No hay cuenta, ni asistente de configuración, ni permisos raros. Al abrirlo
+empieza a pedir publicaciones a Hacker News, Bluesky y GitHub.
+
+### Linux, desde el código
+
+```bash
+./scripts/install-desktop.sh
+```
+
+Compila, instala el binario en `~/.local/bin`, los iconos en el tema del sistema y
+deja un lanzador en el menú **y** un acceso directo en el escritorio. Todo en tu
+perfil: no hace falta `root`. Al final imprime cómo desinstalarlo.
+
+### Con el escritorio en desarrollo
 
 ```bash
 git clone https://github.com/smouj/latido.git
@@ -68,29 +97,24 @@ pnpm install
 pnpm dev                # http://127.0.0.1:5173
 ```
 
-El modo navegador es la app completa. Solo tiene un límite: algunos sitios
-(Reddit, Mastodon, RSS) no permiten peticiones desde una página web. El
-escritorio las lee con su propio cliente HTTP y no tiene ese problema.
-
-### Primera vez
-
-La app se abre con **datos de ejemplo** para que veas la mecánica sin configurar
-nada. Cuando quieras datos reales: `Fuentes` → activa Hacker News y Bluesky (son
-las que funcionan sin clave) → `Sondear ahora`.
+El modo navegador es la app completa, con un límite que conviene saber: algunos
+sitios (Bluesky, Reddit, Mastodon, RSS) no permiten peticiones desde una página
+web. El escritorio las lee con su propio cliente HTTP y no tiene ese problema. El
+**flujo en directo** de Bluesky sí funciona en ambos.
 
 ---
 
 ## Fuentes
 
-| Fuente | Estado | Necesita | Tiempo real |
-| --- | --- | --- | --- |
-| **Hacker News** | lista | nada | API oficial, sin cuota declarada |
-| **Bluesky / AT Protocol** | lista | nada | **Jetstream**: flujo en directo con reconexión |
-| **GitHub** | lista | nada (token opcional) | Búsqueda de repos nuevos + releases vigilados |
-| **Reddit** | lista | escritorio o token | Respetando su `User-Agent` y sus límites |
-| **Mastodon / Fediverso** | lista | escritorio | Etiquetas por instancia |
-| **RSS / Atom** | lista | escritorio | Cualquier feed, incluso de un proyecto propio |
-| **X (Twitter)** | **fuera de alcance** | — | No se automatiza fuera de su API autorizada |
+| Fuente | Estado | Necesita | Tiempo real | Notas |
+| --- | --- | --- | --- | --- |
+| **Hacker News** | lista | nada | sondeo (3 min) | API oficial, sin cuota declarada; también va en el navegador |
+| **Bluesky / AT Protocol** | lista | nada | **Jetstream: flujo en directo** | El flujo (WebSocket) va en escritorio y navegador; la búsqueda necesita el escritorio |
+| **GitHub** | lista | nada (token opcional) | sondeo (8 min) | Repos nuevos por estrellas + releases vigilados |
+| **Reddit** | lista | escritorio o token | sondeo (5 min) | Respetando su `User-Agent` y sus límites |
+| **Mastodon / Fediverso** | lista | escritorio | sondeo (5 min) | Etiquetas por instancia |
+| **RSS / Atom** | lista | escritorio | sondeo (10 min) | Cualquier feed, incluso de un proyecto propio |
+| **X (Twitter)** | **fuera de alcance** | — | — | No se automatiza fuera de su API autorizada |
 
 Añadir una fuente es un archivo y una línea en el registro: ver
 [`docs/CONNECTORS.md`](docs/CONNECTORS.md).
@@ -150,12 +174,13 @@ de archivos, SQLite y llavero. Menos código duplicado, menos sitios donde falla
 ```bash
 pnpm dev              # interfaz en el navegador
 pnpm dev:desktop      # app de escritorio en desarrollo
-pnpm test             # 61 tests del motor
+pnpm test             # 63 tests del motor
 pnpm typecheck        # tipos de todos los paquetes
 pnpm build            # tokens → motor → interfaz
 pnpm build:desktop    # instalador (.deb, .AppImage, .exe, .dmg)
-pnpm verify           # todo lo anterior + comprobación de determinismo
-pnpm --filter @latido/desktop exec tauri build   # equivalente al build de escritorio
+pnpm verify           # verificación completa
+./scripts/install-desktop.sh   # instalar en el menú y el escritorio (Linux)
+./scripts/make-icons.mjs       # regenerar iconos (PNG, ICO, ICNS)
 ```
 
 ---
@@ -164,17 +189,19 @@ pnpm --filter @latido/desktop exec tauri build   # equivalente al build de escri
 
 1. **Local primero.** Sin cuenta, sin servidor, sin telemetría. Si no puedes
    abrir tus datos con `sqlite3`, no son tuyos.
-2. **Reglas, no modelos.** Descubrir tendencias es estadística barata y
+2. **Nada inventado.** Ni titulares de relleno, ni ejemplos que parezcan noticias.
+   Cada item se puede abrir en su origen y lleva su hora; cada número sale de una
+   cuenta que puedes reproducir.
+3. **Reglas, no modelos.** Descubrir tendencias es estadística barata y
    explicable. Un modelo de lenguaje es **opcional** y solo para resumir o
    traducir. Si no puedes explicar por qué un tema aparece en el Radar con una
    frase y dos números, el algoritmo está mal.
-3. **Nada de automatización no autorizada.** Se usan API públicas y flujos
+4. **Nada de automatización no autorizada.** Se usan API públicas y flujos
    oficiales (Jetstream, RSS, API de HN). X queda fuera hasta que exista acceso
    permitido: una app que depende de saltarse reglas vive hasta que la bloquean.
-4. **La interfaz no miente.** Cada número que ves viene de una cuenta que puedes
-   reproducir, y cada fuente puede estar apagada o rota sin que la app finja que
-   todo va bien.
-5. **Interfaz con criterio, no con moda.** Grafito cálido y un único acento de
+5. **La interfaz no miente.** Si una fuente falla, se dice cuál y por qué. Si el
+   flujo en directo se cae, el indicador cambia en vez de seguir diciendo "en vivo".
+6. **Interfaz con criterio, no con moda.** Grafito cálido y un único acento de
    ascua. Sin morados de IA ni degradados de cristal. Ver [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ---

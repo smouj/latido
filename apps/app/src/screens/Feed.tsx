@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { Item } from '@latido/engine'
 
@@ -20,7 +20,7 @@ export type FeedMode = 'home' | 'breaking' | 'bookmarks'
  * la interfaz en un bucle de actualización. Se calcula con `useMemo`.
  */
 export function FeedScreen({ mode }: { mode: FeedMode }): JSX.Element {
-  const { t, items, trends, ready, filters, setFilters } = useLatido()
+  const { t, items, trends, ready, filters, setFilters, realtime, poll } = useLatido()
 
   const byCluster = useMemo(() => {
     const counts = new Map<string, number>()
@@ -39,6 +39,11 @@ export function FeedScreen({ mode }: { mode: FeedMode }): JSX.Element {
     () => trends.filter((trend) => trend.state === 'breaking' || trend.state === 'emerging'),
     [trends],
   )
+
+  // Pintar cuatrocientas publicaciones de golpe no aporta nada y cuesta caro:
+  // se enseña una página y el resto entra a demanda.
+  const [window, setWindow] = useState(60)
+  const page = visible.slice(0, window)
 
   if (!ready) return <SkeletonList />
 
@@ -66,25 +71,42 @@ export function FeedScreen({ mode }: { mode: FeedMode }): JSX.Element {
             <EmptyState icon="bookmark" title={t('bookmarks.empty')} hint={t('bookmarks.emptyHint')} />
           ) : (
             <EmptyState
-              icon="search"
-              title={t('feed.empty')}
-              hint={t('feed.emptyHint')}
+              icon={realtime === 'connecting' ? 'radio' : 'search'}
+              title={t('feed.emptyReal')}
+              hint={t('feed.emptyRealHint')}
               action={
                 <button
                   type="button"
                   className="btn btn--primary"
-                  onClick={() => setFilters({ topics: [], sources: [], onlyWatched: false })}
+                  onClick={() => {
+                    void poll()
+                    setFilters({ topics: [], sources: [], onlyWatched: false })
+                  }}
                 >
                   <Icon name="refresh" size="sm" />
-                  {t('empty.hint')}
+                  {t('app.refresh')}
                 </button>
               }
             />
           )
         ) : (
-          visible.map((item) => (
-            <PostCard key={item.id} item={item} grouped={item.clusterId ? (byCluster.get(item.clusterId) ?? 0) : 0} />
-          ))
+          <>
+            {page.map((item) => (
+              <PostCard
+                key={item.id}
+                item={item}
+                grouped={item.clusterId ? (byCluster.get(item.clusterId) ?? 0) : 0}
+              />
+            ))}
+            {visible.length > page.length ? (
+              <div className="more-button">
+                <button type="button" className="btn btn--outline" onClick={() => setWindow(window + 60)}>
+                  <Icon name="chevronDown" size="sm" />
+                  {t('app.more')} · {visible.length - page.length}
+                </button>
+              </div>
+            ) : null}
+          </>
         )}
       </section>
     </div>

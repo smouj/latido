@@ -1,6 +1,8 @@
-import { useLatido } from '@/state/store'
+import { memo } from 'react'
+
 import { ActionButton, Avatar, ExternalLink, SourceDot } from '@/components/primitives'
 import { Icon } from '@/components/Icon'
+import { useLatido } from '@/state/store'
 import { clockTime, compactNumber, hostOf, relativeTime } from '@/lib/format'
 import type { Item } from '@latido/engine'
 
@@ -9,22 +11,39 @@ import type { Item } from '@latido/engine'
  *
  * Jerarquía: autor y red arriba (contexto), titular en el medio (lo que se lee)
  * y métricas abajo (lo que se compara). Si el item forma parte de un tema
- * agrupado, se dice cuántas publicaciones hablan de lo mismo: ese es el valor
- * que aporta Latido frente a un cronología normal.
+ * agrupado, se dice cuántas publicaciones hablan de lo mismo.
+ *
+ * Va memoizada a propósito: con el flujo en directo el flujo se repinta cada
+ * pocos segundos, y solo debe volver a pintarse lo que ha cambiado. Las acciones
+ * se piden al almacén en el momento del clic, no por suscripción.
  */
-export function PostCard({ item, grouped = 0 }: { item: Item; grouped?: number }): JSX.Element {
-  const { t, lang, toggleBookmark, selectItem, selectTrend, markRead, toast } = useLatido()
+export const PostCard = memo(function PostCard({
+  item,
+  grouped = 0,
+}: {
+  item: Item
+  grouped?: number
+}): JSX.Element {
+  const lang = useLatido((state) => state.lang)
+  const t = useLatido((state) => state.t)
   const bookmarked = useLatido((state) => state.bookmarkedIds.includes(item.id))
 
   const title = item.title?.trim()
   const body = item.body?.trim()
 
+  const saved = (): void => {
+    const store = useLatido.getState()
+    store.toggleBookmark(item.id)
+    store.toast(t('app.saved'), 'ok')
+  }
+
   return (
     <article
-      className="post"
+      className={`post ${grouped > 1 ? 'post--grouped' : ''}`}
       onClick={() => {
-        markRead([item.id])
-        selectItem(item.id)
+        const store = useLatido.getState()
+        store.markRead([item.id])
+        store.selectItem(item.id)
       }}
     >
       <Avatar name={item.author.displayName ?? item.author.handle} url={item.author.avatarUrl} />
@@ -54,10 +73,7 @@ export function PostCard({ item, grouped = 0 }: { item: Item; grouped?: number }
             label={t('app.save')}
             active={bookmarked}
             title={t('app.save')}
-            onClick={() => {
-              toggleBookmark(item.id)
-              toast(t('app.saved'), 'ok')
-            }}
+            onClick={saved}
           />
           {item.metrics.likes ? (
             <ActionButton icon="star" label={compactNumber(item.metrics.likes, lang)} title="Me gusta" />
@@ -80,7 +96,7 @@ export function PostCard({ item, grouped = 0 }: { item: Item; grouped?: number }
               className="post__action post__action--group"
               onClick={(event) => {
                 event.stopPropagation()
-                selectTrend(item.clusterId ?? null)
+                useLatido.getState().selectTrend(item.clusterId ?? null)
               }}
             >
               <Icon name="activity" size="sm" />
@@ -95,17 +111,21 @@ export function PostCard({ item, grouped = 0 }: { item: Item; grouped?: number }
       </div>
     </article>
   )
-}
+})
 
 /** Fila compacta para resultados de búsqueda y paneles. */
-export function PostRow({ item }: { item: Item }): JSX.Element {
-  const { lang, selectItem } = useLatido()
+export const PostRow = memo(function PostRow({ item }: { item: Item }): JSX.Element {
+  const lang = useLatido((state) => state.lang)
   return (
-    <button type="button" className="rail-trend" onClick={() => selectItem(item.id)}>
+    <button
+      type="button"
+      className="rail-trend"
+      onClick={() => useLatido.getState().selectItem(item.id)}
+    >
       <span className="grow">
         <span className="rail-trend__title">{item.title ?? item.body ?? item.url}</span>
       </span>
       <span className="rail-trend__meta">{relativeTime(item.publishedAt, Date.now(), lang)}</span>
     </button>
   )
-}
+})

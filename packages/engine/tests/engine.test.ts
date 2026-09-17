@@ -49,6 +49,22 @@ describe('LatidoEngine', () => {
     expect(engine.stats().items).toBe(before)
   })
 
+  it('no vuelve a agrupar lo que ya está archivado y conserva su tema', () => {
+    const engine = engineWithDemo()
+    const first = engine.loadDemo(NOW)
+    const clustersAfterFirst = engine.stats().clusters
+
+    // Tres ciclos más con los mismos datos: el número de temas no debe moverse.
+    for (let cycle = 0; cycle < 3; cycle += 1) {
+      const again = engine.loadDemo(NOW + (cycle + 1) * 60_000)
+      expect(again.inserted).toBe(0)
+    }
+
+    expect(first.inserted).toBe(first.fetched)
+    expect(engine.stats().clusters).toBe(clustersAfterFirst)
+    expect(engine.stats().clusters).toBeLessThanOrEqual(engine.stats().items)
+  })
+
   it('ordena el radar por puntuación y guarda la serie temporal', () => {
     const engine = engineWithDemo()
     engine.loadDemo(NOW)

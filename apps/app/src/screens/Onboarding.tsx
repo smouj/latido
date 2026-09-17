@@ -23,7 +23,7 @@ const STARTER_SOURCES = ['hackernews', 'bluesky', 'github', 'reddit'] as const
  * cuándo avisarte. Se puede saltar y mirar con datos de ejemplo.
  */
 export function Onboarding(): JSX.Element {
-  const { t, completeOnboarding, toggleSource, sources, loadSample, rules } = useLatido()
+  const { t, completeOnboarding, toggleSource, sources, rules } = useLatido()
   const [interests, setInterests] = useState<string[]>(['ai', 'opensource'])
 
   const enabled = new Set(sources.filter((source) => source.enabled).map((source) => source.kind))
@@ -141,20 +141,13 @@ export function Onboarding(): JSX.Element {
             <Icon name="activity" size="sm" />
             {t('onboarding.start')}
           </button>
-          <button
-            type="button"
-            className="btn btn--ghost btn--block"
-            onClick={() => {
-              loadSample()
-              completeOnboarding([])
-            }}
-          >
-            <Icon name="sparkles" size="sm" />
-            {t('onboarding.skip')}
-          </button>
           <span className="micro faint inline">
             <Icon name="shield" size="sm" />
             {t('onboarding.localOnly')}
+          </span>
+          <span className="micro faint inline">
+            <Icon name="radio" size="sm" />
+            {t('app.firstRunHint')}
           </span>
         </div>
       </div>

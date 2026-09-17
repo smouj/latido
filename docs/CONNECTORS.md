@@ -241,3 +241,22 @@ Caso concreto: una red "Ejemplo Social" con `kind: 'ejemplo'`.
 6. **Comprueba.** `pnpm test`, `pnpm typecheck` y `pnpm verify`. Si la red
    necesita proxy, verifica además que la pantalla Fuentes lo dice
    (`requiresProxy` la pinta como "necesita el escritorio" cuando no lo hay).
+
+## CORS: qué funciona dónde
+
+Comprobado a base de golpes contra la aplicación en marcha, no supuesto:
+
+| Petición | Navegador | Escritorio |
+| --- | --- | --- |
+| Hacker News (Firebase) | sí | sí |
+| GitHub (`api.github.com`) | sí | sí |
+| Bluesky **Jetstream** (WebSocket) | sí | sí |
+| Bluesky búsqueda (`public.api.bsky.app`) | **no** (sin cabeceras CORS) | sí |
+| Reddit | **no** | sí |
+| Mastodon (instancias) | **no** | sí |
+| RSS / Atom | **no** (casi ningún medio manda CORS) | sí |
+
+Los WebSocket no están sujetos a CORS, y por eso el **flujo en directo funciona
+también en el navegador**, mientras que las búsquedas por API necesitan el
+escritorio. En la interfaz esto se ve en la pantalla de Fuentes: cada fuente dice
+si necesita el escritorio y no se queda en silencio cuando falla.

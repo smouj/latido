@@ -12,7 +12,7 @@
  *  - `novelty`   un tema joven puntúa más alto que el mismo tema 6 h después.
  *  - `score`     0–100, media ponderada normalizada. Orden del Radar.
  */
-import { titleFromKeywords } from './text'
+import { firstLine, simhashSimilarity, titleFromKeywords } from './text'
 import type { Cluster, Item, SourceKind, SourceStats, Trend, TrendReason, TrendState } from './types'
 
 export interface TrendOptions {
@@ -105,6 +105,40 @@ function noveltyOf(firstSeen: number, now: number, baselineMs: number): number {
   return clamp01(1 - age / baselineMs)
 }
 
+/**
+ * Item más representativo del tema: el que más se parece al centroide.
+ *
+ * Es la diferencia entre un título legible —"Show HN: Share your AI Setup"— y
+ * una lista de palabras sueltas —"associate · become · canada"—. Cuando hay
+ * entidades, mandan ellas; cuando no, manda el titular real de alguien.
+ */
+export function representativeItem(items: Item[]): Item | undefined {
+  const first = items[0]
+  if (!first) return undefined
+  if (items.length === 1) return first
+  let best = first
+  let bestScore = -1
+  // La ventana puede ser larga: basta con mirar los más recientes, que es lo que
+  // el lector va a reconocer.
+  for (const item of items.slice(0, 24)) {
+    const score = simhashSimilarity(item.simhash, items[0]?.simhash ?? item.simhash)
+    const weighted = score + (item.title ? 0.05 : 0)
+    if (weighted > bestScore) {
+      bestScore = weighted
+      best = item
+    }
+  }
+  return best
+}
+
+function titleOf(items: Item[], keywords: string[], entityLabels: string[]): string {
+  if (entityLabels.length > 0) return entityLabels.slice(0, 2).join(' · ')
+  const representative = representativeItem(items)
+  const text = representative?.title?.trim() || representative?.body?.trim() || ''
+  if (text.length >= 12) return text.length > 90 ? `${text.slice(0, 89).trimEnd()}…` : text
+  return titleFromKeywords(keywords, text)
+}
+
 function stateOf(input: { velocity: number; coverage: number; volume: number; ageMin: number }): TrendState {
   const { velocity, coverage, volume, ageMin } = input
   if (coverage >= 3 && velocity >= 5 && volume >= 25) return 'breaking'
@@ -185,10 +219,7 @@ export function computeTrend(input: TrendInput): Trend {
   const entityLabels = cluster.entities
     .map((slug) => entityNames[slug] ?? slug)
     .filter((label) => label.length > 0)
-  const firstItem = window[0] ?? items[0]
-  const title = entityLabels.length
-    ? entityLabels.slice(0, 2).join(' · ')
-    : titleFromKeywords(keywords, firstItem?.title ?? firstItem?.body ?? '')
+  const title = titleOf(window.length > 0 ? window : items, keywords, entityLabels)
 
   return {
     id: cluster.id,

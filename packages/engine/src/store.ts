@@ -233,6 +233,28 @@ export class MemoryStore {
     return this.clusters.get(id)
   }
 
+  /** Quita temas que ya no existen. Devuelve cuántos se han ido. */
+  removeClusters(ids: string[]): number {
+    let removed = 0
+    for (const id of ids) if (this.clusters.delete(id)) removed += 1
+    return removed
+  }
+
+  /**
+   * Deja solo las tendencias indicadas. Un tema sin publicaciones en el archivo
+   * no debe seguir contando en el Radar ni en las estadísticas.
+   */
+  retainTrends(ids: Set<string>): number {
+    let removed = 0
+    for (const id of [...this.trends.keys()]) {
+      if (ids.has(id)) continue
+      this.trends.delete(id)
+      this.points.delete(id)
+      removed += 1
+    }
+    return removed
+  }
+
   allClusters(): Cluster[] {
     return [...this.clusters.values()].sort((a, b) => b.lastSeen - a.lastSeen)
   }

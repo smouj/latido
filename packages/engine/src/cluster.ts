@@ -124,6 +124,14 @@ export class Clusterer {
     return this.clusters.get(id)
   }
 
+  /**
+   * Olvida un tema concreto. Se usa cuando el almacén decide que un tema ya no
+   * tiene publicaciones: dejarlo vivo solo ensuciaría el Radar y los contadores.
+   */
+  forget(id: string): void {
+    this.remove(id)
+  }
+
   all(): Cluster[] {
     return [...this.clusters.values()]
   }

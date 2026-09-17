@@ -108,6 +108,12 @@ export class LatidoEngine {
   /**
    * Normaliza, agrupa y guarda. Idempotente: volver a ingerir lo mismo no
    * duplica nada, solo actualiza métricas al alza.
+   *
+   * Ojo con el agrupado: un item que ya está en el archivo **conserva su tema**.
+   * Volver a agruparlo crearía un tema nuevo cada vez que se sondea la misma
+   * fuente (y el tema viejo, caducado, se retiraría), con lo que el número de
+   * temas crecería sin sentido y el Radar se llenaría de historias de un solo
+   * item. Solo se agrupa de cero lo que no está, o lo que perdió su tema.
    */
   ingest(rawItems: RawItem[], now = this.clock()): IngestResult {
     const errors: IngestResult['errors'] = []
@@ -117,6 +123,16 @@ export class LatidoEngine {
     for (const raw of rawItems) {
       try {
         const item = normalizeItem(raw, now, this.dictionary)
+        const existing = this.store.getItem(item.id)
+        const alive = existing?.clusterId ? this.clusterer.get(existing.clusterId) !== undefined : false
+
+        if (existing && alive) {
+          // Ya lo teníamos y su tema sigue vivo: solo se refrescan las métricas.
+          normalized.push({ ...item, clusterId: existing.clusterId })
+          if (existing.clusterId) touched.add(existing.clusterId)
+          continue
+        }
+
         const cluster = this.clusterer.assign(item, tokenize(`${item.title ?? ''} ${item.body ?? ''}`))
         touched.add(cluster.id)
         normalized.push(item)
@@ -211,11 +227,25 @@ export class LatidoEngine {
     const entityNames = Object.fromEntries(
       this.store.allEntities().map((entity) => [entity.slug, entity.name]),
     )
-    const clusters = this.store.allClusters()
+    // Solo los temas con publicaciones dentro del archivo: un tema sin items
+    // (porque su contenido se podó por retención) no debe ocupar el Radar.
+    const clusters = this.store
+      .allClusters()
+      .filter((cluster) => this.store.itemsByCluster(cluster.id).length > 0)
     const itemsByCluster = this.store.itemsByClusterMap(clusters.map((cluster) => cluster.id))
     const trends = this.trendEngine.evaluateAll(clusters, itemsByCluster, now, entityNames)
 
     this.store.putTrends(trends)
+    // Coherencia de los contadores: un tema sin publicaciones en el archivo no
+    // es un tema. Sin esto, el Radar y la salud del archivo acaban diciendo que
+    // hay más temas que publicaciones, que es imposible.
+    const live = new Set(clusters.map((cluster) => cluster.id))
+    const stale = this.store.allClusters().filter((cluster) => !live.has(cluster.id))
+    if (stale.length > 0) {
+      for (const cluster of stale) this.clusterer.forget(cluster.id)
+      this.store.removeClusters(stale.map((cluster) => cluster.id))
+    }
+    this.store.retainTrends(new Set(trends.map((trend) => trend.id)))
     this.store.saveTrendPoints(
       trends.map((trend) => ({
         trendId: trend.id,
@@ -279,7 +309,11 @@ export class LatidoEngine {
   }
 
   radar(options: { limit?: number; minScore?: number } = {}): Trend[] {
-    return this.store.queryTrends(options)
+    // Un tema sin actividad en la ventana no es una tendencia: es una historia
+    // vieja. Enseñarla como "0 publicaciones" solo ensuciaba el Radar.
+    return this.store
+      .queryTrends({ ...options, minScore: options.minScore ?? 1 })
+      .filter((trend) => trend.volume > 0)
   }
 
   search(term: string, limit = 50): Item[] {

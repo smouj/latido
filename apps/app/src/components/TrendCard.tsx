@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 import type { Trend } from '@latido/engine'
 
 import { Icon } from '@/components/Icon'
@@ -6,14 +8,17 @@ import { compactNumber, relativeTime } from '@/lib/format'
 import { useLatido } from '@/state/store'
 
 /** Tarjeta completa de un tema: la vista del Radar y el detalle. */
-export function TrendCard({ trend, rank }: { trend: Trend; rank?: number }): JSX.Element {
-  const { t, lang, selectTrend, selectedTrendId, toast } = useLatido()
-  const selected = selectedTrendId === trend.id
+export const TrendCard = memo(function TrendCard({ trend, rank }: { trend: Trend; rank?: number }): JSX.Element {
+  const t = useLatido((state) => state.t)
+  const lang = useLatido((state) => state.lang)
+  const selected = useLatido((state) => state.selectedTrendId === trend.id)
+
+  const toggle = (): void => useLatido.getState().selectTrend(selected ? null : trend.id)
 
   return (
     <article
-      className={`trend ${selected ? 'trend--selected' : ''}`}
-      onClick={() => selectTrend(selected ? null : trend.id)}
+      className={`trend trend--${trend.state} ${selected ? 'trend--selected' : ''}`}
+      onClick={toggle}
     >
       <div className="trend__head">
         {rank !== undefined ? <span className="trend__rank mono">{String(rank).padStart(2, '0')}</span> : null}
@@ -98,8 +103,7 @@ export function TrendCard({ trend, rank }: { trend: Trend; rank?: number }): JSX
               className="btn btn--outline btn--small"
               onClick={(event) => {
                 event.stopPropagation()
-                selectTrend(trend.id)
-                toast(t('feed.conversation'), 'info')
+                toggle()
               }}
             >
               <Icon name="activity" size="sm" />
@@ -113,13 +117,23 @@ export function TrendCard({ trend, rank }: { trend: Trend; rank?: number }): JSX
       )}
     </article>
   )
-}
+})
 
 /** Versión mínima para la columna derecha. */
-export function TrendRailRow({ trend, rank }: { trend: Trend; rank: number }): JSX.Element {
-  const { selectTrend, lang } = useLatido()
+export const TrendRailRow = memo(function TrendRailRow({
+  trend,
+  rank,
+}: {
+  trend: Trend
+  rank: number
+}): JSX.Element {
+  const lang = useLatido((state) => state.lang)
   return (
-    <button type="button" className="rail-trend" onClick={() => selectTrend(trend.id)}>
+    <button
+      type="button"
+      className="rail-trend"
+      onClick={() => useLatido.getState().selectTrend(trend.id)}
+    >
       <span className="grow">
         <span className="rail-trend__title">
           <span className="mono faint">{rank} </span>
@@ -144,4 +158,4 @@ export function TrendRailRow({ trend, rank }: { trend: Trend; rank: number }): J
       </span>
     </button>
   )
-}
+})

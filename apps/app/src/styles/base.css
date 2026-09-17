@@ -653,9 +653,27 @@ strong,
   color: var(--color-text);
 }
 
+.live--ok {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-muted);
+}
+
+.live--warn {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
 .live--on .live__dot {
   background: var(--color-accent);
   animation: pulse var(--duration-pulse) var(--ease-standard) infinite;
+}
+
+.live--ok .live__dot {
+  background: var(--color-positive);
+}
+
+.live--warn .live__dot {
+  background: var(--color-warning);
 }
 
 @keyframes pulse {
@@ -1772,6 +1790,95 @@ strong,
   height: var(--border-hairline);
   background: var(--color-border);
   border: none;
+}
+
+/* ── rendimiento percibido ────────────────────────────────────────────── */
+
+/*
+ * Listas largas: el navegador solo pinta y mide las filas visibles. En un flujo
+ * con cientos de publicaciones esto es la diferencia entre desplazarse fluido y
+ * ir a tirones, y no cuesta ni una línea de JavaScript.
+ */
+.post,
+.trend,
+.alert-item,
+.entity-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 7.5rem;
+}
+
+.stream,
+.rail,
+.column--center {
+  overscroll-behavior: contain;
+}
+
+/* El desplazamiento del documento no se encadena a la ventana del escritorio. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* ── refinado ─────────────────────────────────────────────────────────── */
+
+/* Respuesta inmediata al pulsar: la interfaz se siente, no solo se ve. */
+.post:active,
+.trend:active,
+.rail-trend:active {
+  background: var(--color-surface-raised);
+}
+
+.post__title,
+.trend__title {
+  text-wrap: pretty;
+}
+
+.post__body {
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+/* Las publicaciones agrupadas llevan un filo tenue: se ve que pertenecen al mismo tema. */
+.post--grouped {
+  box-shadow: inset 2px 0 0 0 var(--color-accent-soft);
+}
+
+/* Un tema en portada se marca por delante, sin gritar. */
+.trend--breaking::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--color-accent);
+}
+
+/* Los números nunca bailan al actualizarse. */
+.metric__value,
+.trend__score,
+.meter__value,
+.rail-trend__meta,
+.delta {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Botón de "ver más": aparcado al centro, sin robar protagonismo. */
+.more-button {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4);
+  border-bottom: var(--border-hairline) solid var(--color-border);
+}
+
+/* Skeleton solo mientras se carga de verdad. */
+.is-loading .post {
+  content-visibility: visible;
+}
+
+@media (min-width: 88rem) {
+  .shell {
+    max-width: 90rem;
+  }
 }
 
 /* ── adaptación a pantallas ───────────────────────────────────────────── */

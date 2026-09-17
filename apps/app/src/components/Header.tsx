@@ -2,13 +2,21 @@ import { Icon } from '@/components/Icon'
 import { useLatido } from '@/state/store'
 
 /**
- * Cabecera del canal central: título de la vista, estado del sondeo y las
- * acciones de siempre (buscar, tema, idioma, sondear). Se queda pegada arriba.
+ * Cabecera del canal central: título de la vista, estado real de la conexión y
+ * las acciones de siempre (buscar, tema, idioma, sondear). Se queda pegada
+ * arriba.
+ *
+ * El indicador dice la verdad: si el flujo en directo está conectado lo dice, y
+ * si solo hay sondeo también. Nunca un "en vivo" decorativo.
  */
 export function Header({ title, subtitle }: { title: string; subtitle?: string }): JSX.Element {
-  const { t, polling, lastPollAt, lang, theme, setTheme, setLang, poll, query, setQuery, counts } = useLatido()
+  const { t, polling, lastPollAt, lang, theme, setTheme, setLang, poll, query, setQuery, realtime, pollError } =
+    useLatido()
 
-  const live = lastPollAt !== null && Date.now() - lastPollAt < 15 * 60 * 1000
+  const realtimeLabel = t(`realtime.${realtime}` as 'realtime.live')
+  const realtimeOn = realtime === 'live'
+  const recentPoll = lastPollAt !== null && Date.now() - lastPollAt < 15 * 60 * 1000
+  const tone = realtimeOn ? 'live--on' : recentPoll ? 'live--ok' : pollError ? 'live--warn' : ''
 
   return (
     <>
@@ -35,9 +43,9 @@ export function Header({ title, subtitle }: { title: string; subtitle?: string }
           ) : null}
         </label>
 
-        <span className={`live ${live ? 'live--on' : ''}`} title={live ? t('app.live') : t('app.paused')}>
+        <span className={`live ${tone}`} title={realtimeOn ? realtimeLabel : t('app.refresh')}>
           <span className="live__dot" />
-          {polling ? t('app.refreshing') : live ? t('app.live') : t('app.paused')}
+          {polling ? t('app.refreshing') : realtimeLabel}
         </span>
 
         <button
@@ -66,12 +74,9 @@ export function Header({ title, subtitle }: { title: string; subtitle?: string }
           title={t('app.refresh')}
           aria-label={t('app.refresh')}
         >
-          <Icon name="refresh" className={polling ? 'spin' : ''} />
+          <Icon name="refresh" />
         </button>
       </header>
-      <div className="sr-only" aria-live="polite">
-        {counts.items} {t('sources.items', { count: counts.items })}
-      </div>
     </>
   )
 }
