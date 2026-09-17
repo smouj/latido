@@ -118,3 +118,15 @@ verificar sola.
 - Automatizar X fuera de su API.
 - Recomendaciones por caja negra: si Latido ordena algo, se puede explicar con
   sus números (`docs/TREND-ENGINE.md`).
+
+## Hecho en 0.1.x (ampliación)
+
+- [x] **Tiempo real**: flujo Jetstream de Bluesky con reconexión exponencial,
+      ingesta por tandas y recálculo espaciado.
+- [x] **Sin contenido inventado**: la aplicación arranca pidiendo datos reales a
+      las fuentes; el generador de ejemplos queda para tests y desarrollo.
+- [x] **Rendimiento**: tarjetas memorizadas, lista por páginas de 60 y
+      `content-visibility` en las filas largas.
+- [x] **Instalación**: `scripts/install-desktop.sh` (binario, iconos, lanzador en
+      el menú y acceso directo en el escritorio) e instaladores por release en CI.
+- [x] **Capturas reales** en `docs/screenshots/`, tomadas de la app en marcha.
