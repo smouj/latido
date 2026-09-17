@@ -1,0 +1,36 @@
+{
+  "name": "@latido/app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Interfaz de Latido. La misma base corre en el escritorio (Tauri) y en el navegador.",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "predev": "pnpm --filter @latido/tokens build",
+    "dev": "vite",
+    "prebuild": "pnpm --filter @latido/tokens build",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource-variable/manrope": "^5.1.1",
+    "@fontsource/ibm-plex-mono": "^5.1.1",
+    "@latido/engine": "workspace:*",
+    "@latido/tokens": "workspace:*",
+    "@tauri-apps/api": "^2.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5"
+  }
+}

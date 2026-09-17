@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Latido">
+  <rect width="64" height="64" rx="14" fill="#E4572E" />
+  <path
+    d="M10 34h8.5L24 18l8 26 5-12h17"
+    fill="none"
+    stroke="#1A0C07"
+    stroke-width="4.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

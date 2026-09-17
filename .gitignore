@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# local data (a Latido install is local-first: never commit a database)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.log
+
+# editors / os
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+
+# test / coverage
+coverage/
+.vitest/
+
+# scratch
+.openclaw/tmp/
+tmp/

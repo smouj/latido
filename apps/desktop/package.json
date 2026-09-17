@@ -1,0 +1,21 @@
+{
+  "name": "@latido/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Latido para escritorio: Tauri 2, SQLite local y notificaciones del sistema.",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@latido/app": "workspace:*"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.2.0",
+    "typescript": "^5.7.3"
+  }
+}

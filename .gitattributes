@@ -1,0 +1,25 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.sqlite binary
+
+*.rs text eol=lf
+*.toml text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+
+package-lock.json -diff
+pnpm-lock.yaml -diff
+
+# keep language detection sane for linguist
+packages/tokens/dist/* linguist-generated=true
+apps/app/src/i18n/* linguist-documentation=true

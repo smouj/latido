@@ -1,0 +1,52 @@
+{
+  "name": "latido",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Latido — el pulso de internet. Local-first, sin cuenta, sin servidor.",
+  "license": "AGPL-3.0-or-later",
+  "author": {
+    "name": "smouj",
+    "email": "smouj@users.noreply.github.com",
+    "url": "https://github.com/smouj"
+  },
+  "homepage": "https://github.com/smouj/latido#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smouj/latido.git"
+  },
+  "bugs": {
+    "url": "https://github.com/smouj/latido/issues"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "dev": "pnpm --filter @latido/app dev",
+    "dev:desktop": "pnpm --filter @latido/desktop dev",
+    "build": "pnpm --filter @latido/tokens build && pnpm --filter @latido/engine build && pnpm --filter @latido/app build",
+    "build:desktop": "pnpm build && pnpm --filter @latido/desktop build",
+    "preview": "pnpm --filter @latido/app preview",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @latido/engine test",
+    "test:watch": "pnpm --filter @latido/engine test:watch",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "bash scripts/verify.sh",
+    "clean": "rm -rf packages/*/dist apps/*/dist apps/desktop/src-tauri/target"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "eslint": "^9.20.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@tauri-apps/cli"
+    ]
+  }
+}
