@@ -224,6 +224,13 @@ strong,
   gap: var(--space-5);
 }
 
+/* En un flex en columna con altura máxima, los hijos se aplastan en vez de
+   desplazarse: cada sección se comprime y su texto se desborda encima de la
+   siguiente. El rail tiene que desplazarse, no encogerse. */
+.rail > * {
+  flex: 0 0 auto;
+}
+
 .header {
   position: sticky;
   top: 0;
