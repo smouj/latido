@@ -114,10 +114,6 @@ impl Archive {
         Ok(archive)
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
     /// Una conexión por llamada: con WAL es barato y evita compartir estado
     /// mutable entre hilos.
     fn connection(&self) -> rusqlite::Result<Connection> {
@@ -267,14 +263,19 @@ impl Archive {
         })
     }
 
-    /// Copia de seguridad consistente: usa la API de respaldo de SQLite, no una
-    /// copia de archivo a archivo (que con WAL puede quedar a medias).
+    /// Copia de seguridad consistente: `VACUUM INTO` deja un archivo íntegro en
+    /// una sola operación de SQLite, sin copiar WAL a mano y sin depender de la
+    /// API de respaldo, que cambia de forma entre versiones de `rusqlite`.
     pub fn export(&self, destination: &Path) -> rusqlite::Result<String> {
         let connection = self.connection()?;
         if let Some(parent) = destination.parent() {
             let _ = fs::create_dir_all(parent);
         }
-        connection.backup(rusqlite::DatabaseName::Main, destination, None)?;
+        if destination.exists() {
+            fs::remove_file(destination).ok();
+        }
+        let target = destination.to_string_lossy().to_string();
+        connection.execute("VACUUM INTO ?1", [target])?;
         Ok(destination.to_string_lossy().to_string())
     }
 }
