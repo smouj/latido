@@ -1881,6 +1881,18 @@ body {
   }
 }
 
+/*
+ * Escala de la interfaz.
+ *
+ * El diseño está en `rem`, así que mover la raíz mueve todo lo que importa: texto,
+ * columnas, espacios. Los filos (1px) se quedan filos, que es justo lo que se
+ * quiere. Se ajusta sola según el escalado del sistema —en Windows al 125-150 %
+ * todo se ve enorme— y a mano desde Ajustes cuando el usuario quiere otra cosa.
+ */
+html {
+  font-size: calc(1rem * var(--ui-scale));
+}
+
 /* ── adaptación y escalado ────────────────────────────────────────────── */
 
 /*

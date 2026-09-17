@@ -59,6 +59,15 @@ export type ThemeChoice = 'system' | 'dark' | 'light'
  */
 export type PlatformChoice = 'windows' | 'macos' | 'linux'
 
+/**
+ * Escala de la interfaz: `auto` la deduce del sistema; un número la fija.
+ *
+ * Windows con escalado al 125-150 % deja la ventana con muy pocos píxeles
+ * lógicos, y sin corregirlo la aplicación parece ampliada: textos enormes y el
+ * contexto lateral fuera de sitio. `auto` mide y compensa.
+ */
+export type UiScaleChoice = 'auto' | number
+
 /** Sistema anfitrión, para acertar con el tema la primera vez. */
 function detectPlatform(): PlatformChoice {
   const ua = (navigator.userAgent || '').toLowerCase()
@@ -178,6 +187,7 @@ interface PersistedShape {
   theme: ThemeChoice
   platform: PlatformChoice
   translation: TranslationSettings
+  uiScale: UiScaleChoice
   lang: Language
   retentionDays: number
   interests: string[]
@@ -226,6 +236,7 @@ interface LatidoState {
   view: ViewKey
   theme: ThemeChoice
   platform: PlatformChoice
+  uiScale: UiScaleChoice
   lang: Language
   filters: Filters
   query: string
@@ -253,6 +264,7 @@ interface LatidoState {
   setView: (view: ViewKey) => void
   setTheme: (theme: ThemeChoice) => void
   setPlatform: (platform: PlatformChoice) => void
+  setUiScale: (scale: UiScaleChoice) => void
   setTranslation: (patch: Partial<TranslationSettings>) => void
   setTranslationKey: (value: string) => Promise<void>
   testTranslation: () => Promise<void>
@@ -304,6 +316,7 @@ export const useLatido = create<LatidoState>((set, get) => ({
   translationReady: false,
   showOriginal: {},
   view: 'home',
+  uiScale: 'auto',
   theme: 'system',
   platform: detectPlatform(),
   lang: 'es',
@@ -343,6 +356,7 @@ export const useLatido = create<LatidoState>((set, get) => ({
 
     applyTheme(get().theme)
     applyPlatform(get().platform)
+    applyScale(get().uiScale)
     applyLanguage(get().lang)
 
     // La clave del proveedor de traducción vive en el llavero del sistema.
@@ -461,6 +475,12 @@ export const useLatido = create<LatidoState>((set, get) => ({
 
     // La traducción va después de pintar: primero el dato real, luego la capa.
     requestTranslations(items)
+  },
+
+  setUiScale: (uiScale) => {
+    applyScale(uiScale)
+    set({ uiScale })
+    scheduleSave(get)
   },
 
   setTranslation: (patch) => {
@@ -734,6 +754,7 @@ function applyPersisted(parsed: Partial<PersistedShape>): void {
   const state = useLatido.getState()
   if (parsed.theme) state.theme = parsed.theme
   if (parsed.platform) state.platform = parsed.platform
+  if (parsed.uiScale !== undefined) state.uiScale = parsed.uiScale
   if (parsed.translation) state.translation = { ...state.translation, ...parsed.translation }
   if (parsed.lang) state.lang = parsed.lang
   if (parsed.retentionDays !== undefined) state.retentionDays = parsed.retentionDays
@@ -751,6 +772,7 @@ function applyPersisted(parsed: Partial<PersistedShape>): void {
   useLatido.setState({
     theme: state.theme,
     platform: state.platform,
+    uiScale: state.uiScale,
     translation: state.translation,
     lang: state.lang,
     retentionDays: state.retentionDays,
@@ -780,6 +802,7 @@ function buildPersisted(state: LatidoState): PersistedShape {
     session,
     theme: state.theme,
     platform: state.platform,
+    uiScale: state.uiScale,
     translation: state.translation,
     lang: state.lang,
     retentionDays: state.retentionDays,
@@ -854,6 +877,23 @@ function scheduleArchive(get: () => LatidoState): void {
     }
     void archiveSync(payload)
   }, 4000)
+}
+
+/** Escala efectiva según lo que diga el sistema o la elección del usuario. */
+function effectiveScale(choice: UiScaleChoice): number {
+  if (typeof choice === 'number') return choice
+  const dpr = window.devicePixelRatio || 1
+  const width = window.innerWidth
+  if (dpr >= 1.5) return 0.85
+  if (dpr >= 1.25) return 0.9
+  if (width < 1100) return 0.92
+  if (width < 1280) return 0.96
+  return 1
+}
+
+/** Aplica la escala de la interfaz moviendo la raíz tipográfica. */
+function applyScale(choice: UiScaleChoice): void {
+  document.documentElement.style.setProperty('--ui-scale', String(effectiveScale(choice)))
 }
 
 /** Aplica el tema de plataforma (radios, densidad, tipografía, neutros). */

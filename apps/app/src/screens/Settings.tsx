@@ -30,6 +30,8 @@ export function SettingsScreen(): JSX.Element {
     sources,
     platform,
     setPlatform,
+    uiScale,
+    setUiScale,
     translation,
     setTranslation,
     setTranslationKey,
@@ -197,6 +199,24 @@ export function SettingsScreen(): JSX.Element {
         </div>
 
         {translationError ? <p className="small warn-text">{translationError}</p> : null}
+      </section>
+
+      <section className="section">
+        <span className="label">{t('settings.scale')}</span>
+        <p className="small muted">{t('settings.scaleHint')}</p>
+        <div className="segmented" role="group" aria-label={t('settings.scale')}>
+          {(['auto', 0.85, 1, 1.15] as const).map((value) => (
+            <button
+              key={String(value)}
+              type="button"
+              className={uiScale === value ? 'is-on' : ''}
+              aria-pressed={uiScale === value}
+              onClick={() => setUiScale(value)}
+            >
+              {value === 'auto' ? t('scale.auto') : `${Math.round(value * 100)} %`}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="section">

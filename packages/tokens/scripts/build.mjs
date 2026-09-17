@@ -60,6 +60,9 @@ const staticVars = [
   ['data-grid', tokens.data.grid],
   // Densidad de fila: cada tema de plataforma la ajusta (1 = la de siempre).
   ['density', '1'],
+  // Escala de la interfaz: 1 = tamaño de diseño. Se ajusta en Ajustes o sola,
+  // según el escalado del sistema (Windows al 125-150 % agranda todo).
+  ['ui-scale', '1'],
   ['control-highlight', 'transparent'],
 ]
 

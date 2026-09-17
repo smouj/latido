@@ -170,6 +170,10 @@ export const es = {
   'translate.cacheCleared': 'Caché de traducciones vaciada',
   'translate.showOriginal': 'Ver original',
   'translate.showTranslation': 'Ver traducción',
+  'settings.scale': 'Escala de la interfaz',
+  'settings.scaleHint':
+    'Si lo ves todo demasiado grande —Windows al 125-150 % lo provoca—, baja la escala. En automático se ajusta sola según el sistema.',
+  'scale.auto': 'Automática',
   'settings.demoDev': 'Cargar datos de prueba (solo desarrollo)',
   'settings.keyNotSaved': 'No he podido guardar la clave en el llavero: seguirá solo en esta sesión',
   'alerts.title': 'Avisos',
@@ -429,6 +433,10 @@ export const en: Record<MessageKey, string> = {
   'translate.cacheCleared': 'Translation cache cleared',
   'translate.showOriginal': 'See original',
   'translate.showTranslation': 'See translation',
+  'settings.scale': 'Interface scale',
+  'settings.scaleHint':
+    'If everything looks too large —Windows at 125-150 % does that— lower the scale. On automatic it adjusts itself to the system.',
+  'scale.auto': 'Automatic',
   'settings.demoDev': 'Load sample data (development only)',
   'settings.keyNotSaved': 'Could not save the key to the system keychain: it will only last this session',
   'alerts.title': 'Alerts',
