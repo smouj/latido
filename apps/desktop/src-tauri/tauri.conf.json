@@ -14,20 +14,21 @@
       {
         "label": "main",
         "title": "Latido",
-        "width": 1280,
-        "height": 860,
-        "minWidth": 860,
-        "minHeight": 600,
+        "width": 1440,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 620,
         "center": true,
         "resizable": true,
         "fullscreen": false,
         "backgroundColor": "#131110",
         "theme": null,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "maximized": true
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost wss://jetstream2.us-east.bsky.network wss://jetstream1.us-east.bsky.network wss://jetstream2.us-west.bsky.network wss://jetstream1.us-west.bsky.network"
     },
     "withGlobalTauri": false
   },

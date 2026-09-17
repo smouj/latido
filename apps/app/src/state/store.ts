@@ -366,7 +366,9 @@ export const useLatido = create<LatidoState>((set, get) => ({
 
     // El escritorio usa el cliente HTTP nativo: sin CORS, Reddit, Mastodon y
     // RSS dejan de estar bloqueados. En el navegador se queda el `fetch` normal.
-    getEngine().setFetch(await platformFetch())
+    const bridgeFetch = await platformFetch()
+    nativeFetch = bridgeFetch
+    getEngine().setFetch(bridgeFetch)
 
     const current = get().sources
     const engineInstance = getEngine()
@@ -410,7 +412,10 @@ export const useLatido = create<LatidoState>((set, get) => ({
     startRealtime({
       keywords,
       langs: ['es', 'en'],
-      fetchImpl: globalThis.fetch,
+      // El cliente nativo del escritorio: dentro del WebView, `fetch` está
+      // limitado por el CSP y la resolución de nombres (DID → handle) fallaba,
+      // así que las publicaciones salían como «did:plc:…» en lugar del nombre.
+      fetchImpl: nativeFetch,
       onBatch: (raw) => {
         if (raw.length === 0) return
         engineInstance.ingest(raw)
@@ -878,6 +883,9 @@ function scheduleArchive(get: () => LatidoState): void {
     void archiveSync(payload)
   }, 4000)
 }
+
+/** Cliente HTTP en uso: en el escritorio es el nativo (sin CORS ni CSP). */
+let nativeFetch: typeof fetch = globalThis.fetch
 
 /** Escala efectiva según lo que diga el sistema o la elección del usuario. */
 function effectiveScale(choice: UiScaleChoice): number {
