@@ -55,6 +55,24 @@ describe('Clusterer', () => {
     expect(clusterer.size).toBe(3)
   })
 
+  it('mueve el centroide cuando llega información nueva', () => {
+    const clusterer = new Clusterer()
+    const first = item('hackernews', 'OpenAI anuncia un modelo nuevo con mucho contexto')
+    const cluster = clusterer.assign(first, tokenize(`${first.title ?? ''}`))
+    expect(cluster.centroid).toBe(first.simhash)
+
+    // Tres items del mismo tema que NO son casi idénticos al primero: la
+    // mayoría debe arrastrar el centroide fuera del primer hash.
+    for (const suffix of ['uno', 'dos', 'tres']) {
+      const extra = item('reddit', `OpenAI despide a un investigador clave ${suffix}`)
+      clusterer.assign(extra, tokenize(`${extra.title ?? ''}`))
+    }
+
+    expect(clusterer.size).toBe(1)
+    expect(cluster.centroid).not.toBe(first.simhash)
+    expect(cluster.centroid).toHaveLength(16)
+  })
+
   it('es idempotente: el mismo item no infla el tema', () => {
     const clusterer = new Clusterer()
     const first = item('rss', 'Rust en el kernel, actualización de mantenimiento')

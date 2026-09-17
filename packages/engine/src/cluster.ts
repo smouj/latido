@@ -16,7 +16,7 @@
  *  3. Si la mejor candidata supera el umbral, el item se une; si no, abre tema.
  *  4. Fusión periódica de agrupaciones casi idénticas (evita temas gemelos).
  */
-import { hammingDistance, jaccard, simhashSimilarity } from './text'
+import { jaccard, simhashSimilarity } from './text'
 import type { Cluster, Item, SourceKind } from './types'
 
 export interface ClusterOptions {
@@ -40,6 +40,13 @@ const DEFAULTS: Required<ClusterOptions> = {
 interface InternalCluster extends Cluster {
   keywords: string[]
   sources: SourceKind[]
+  /**
+   * Cuántos items del tema tienen activado cada uno de los 64 bits.
+   * Es lo que permite que el centroide sea una **votación por mayoría** de
+   * verdad: con una media ponderada sobre el hash anterior, ningún bit podía
+   * llegar a cambiar nunca.
+   */
+  bitCounts: number[]
 }
 
 export class Clusterer {
@@ -165,6 +172,7 @@ export class Clusterer {
       centroid: item.simhash,
       corroborations: 0,
       lang: item.lang ?? 'und',
+      bitCounts: new Array<number>(64).fill(0),
     }
     this.clusters.set(cluster.id, cluster)
     this.index(cluster)
@@ -183,24 +191,33 @@ export class Clusterer {
     cluster.firstSeen = Math.min(cluster.firstSeen, item.publishedAt)
     cluster.lastSeen = Math.max(cluster.lastSeen, item.publishedAt)
     cluster.entities = [...new Set([...cluster.entities, ...item.entities])].slice(0, 12)
-    // Centroide: media por bits frente al hash del item nuevo (ventana móvil).
-    cluster.centroid = this.blendCentroid(cluster.centroid, item.simhash, cluster.itemIds.length)
+    this.addBits(cluster, item.simhash, 1)
+    cluster.centroid = this.centroidOf(cluster)
     cluster.keywords = this.mergeKeywords(cluster.keywords, tokens)
     item.clusterId = cluster.id
     this.index(cluster)
   }
 
-  /** Media bit a bit ponderada: el centroide se mueve, no salta. */
-  private blendCentroid(centroid: string, hash: string, seen: number): string {
-    const weight = Math.min(seen, 32)
-    let out = 0n
-    const left = BigInt(`0x${centroid}`)
-    const right = BigInt(`0x${hash}`)
+  /** Suma (o resta) los bits activos de un simhash al recuento del tema. */
+  private addBits(cluster: InternalCluster, hash: string, sign: 1 | -1): void {
+    const value = BigInt(`0x${hash}`)
     for (let bit = 0; bit < 64; bit += 1) {
-      const shift = BigInt(63 - bit)
-      const vote = ((left >> shift) & 1n) === 1n ? weight : 0
-      const incoming = ((right >> shift) & 1n) === 1n ? 1 : 0
-      if (vote + incoming > weight / 2) out |= 1n << shift
+      if (((value >> BigInt(63 - bit)) & 1n) === 1n) {
+        cluster.bitCounts[bit] = (cluster.bitCounts[bit] ?? 0) + sign
+      }
+    }
+  }
+
+  /**
+   * Centroide por mayoría: un bit se activa si lo tiene al menos la mitad de
+   * los items del tema. Así el tema se mueve cuando llega información nueva, en
+   * vez de quedarse clavado en el primer item que lo abrió.
+   */
+  private centroidOf(cluster: InternalCluster): string {
+    const total = Math.max(1, cluster.itemIds.length)
+    let out = 0n
+    for (let bit = 0; bit < 64; bit += 1) {
+      if ((cluster.bitCounts[bit] ?? 0) * 2 >= total) out |= 1n << BigInt(63 - bit)
     }
     return out.toString(16).padStart(16, '0')
   }
@@ -245,9 +262,10 @@ export class Clusterer {
     target.firstSeen = Math.min(target.firstSeen, source.firstSeen)
     target.lastSeen = Math.max(target.lastSeen, source.lastSeen)
     target.corroborations += source.corroborations
-    if (hammingDistance(target.centroid, source.centroid) > 0) {
-      target.centroid = this.blendCentroid(target.centroid, source.centroid, target.itemIds.length)
+    for (let bit = 0; bit < 64; bit += 1) {
+      target.bitCounts[bit] = (target.bitCounts[bit] ?? 0) + (source.bitCounts[bit] ?? 0)
     }
+    target.centroid = this.centroidOf(target)
     this.remove(source.id)
     this.index(target)
     return source.id

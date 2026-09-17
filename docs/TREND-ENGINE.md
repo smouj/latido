@@ -55,14 +55,12 @@ score = 0,40 · jaccard(tokens del item, keywords del tema)
   tema (`pickKeywords`), y se van mezclando con las de los items siguientes sin
   pasar de `keywordLimit`; nunca se descartan las que ya estaban.
 - **Entidades del tema:** unión de las de sus items, recortada a 12.
-- **Centroide:** `blendCentroid` pretende ser una media por bits, ponderando el
-  valor anterior con `weight = min(nº de items, 32)` y añadiendo 1 si el bit
-  entrante está a 1; el bit queda a 1 si `voto + entrante > weight / 2`.
-  En la práctica, con `weight ≥ 2` ningún bit puede activarse (1 no supera a
-  `weight / 2`) y ningún bit activo puede apagarse, así que el centroide
-  converge al OR de los simhash de los dos primeros items y después se queda
-  quieto. Está documentado en `docs/CONTRIBUTING.md` como comportamiento
-  conocido a corregir; no se toca aquí porque afecta al agrupado.
+- **Centroide:** votación por mayoría sobre los 64 bits. El tema guarda
+  `bitCounts[64]` (cuántos de sus items tienen activado cada bit) y el centroide
+  se recalcula: un bit queda a 1 si lo tiene **al menos la mitad** de los items
+  (`bitCounts[bit] * 2 >= nº de items`). Al absorber un tema, los recuentos se
+  suman. Así el centroide se mueve cuando llega información nueva, en vez de
+  quedarse clavado en el primer item del tema.
 - **Duplicados:** si el item ya está en el tema, no se añade: se incrementa
   `corroborations`.
 - **Fusión (`merge`) y retirada (`evict`):** se ejecutan desde
@@ -80,23 +78,24 @@ score = 0,40 · jaccard(tokens del item, keywords del tema)
 | `baselineMs` | `6 * 60 * 60 * 1000` | Histórico para la línea base (6 h) |
 
 `bucketize` reparte los items de la ventana en 15 cubos de 2 minutos del más
-antiguo al más nuevo. Un item entra si
-`0 ≤ floor((publishedAt − start) / bucketMs) < 15`, con `start = now − 30 min`;
-por tanto el cubo es semiabierto: un item publicado exactamente en `now` queda
-fuera de la serie (y sí cuenta en `volume`).
+antiguo al más nuevo. El índice se calcula **desde el ahora**
+(`index = 15 − 1 − floor((now − publishedAt) / 2 min)`), así que un item
+publicado en este mismo instante cae en el último cubo en lugar de quedarse
+fuera de la serie. Lo que es más antiguo que la ventana se descarta; lo que
+quede en el futuro (relojes desajustados) se acumula en el último cubo.
 
-La serie se parte por la mitad (`half = floor(15 / 2) = 7`):
+La serie se parte con `half = floor(15 / 2) = 7` y el corte es `slice(half)`:
 
-- **reciente** = cubos 8–14 (los últimos 14 minutos).
+- **reciente** = cubos 7–14 (los últimos 16 minutos).
 - **anterior** = cubos 0–6 (los 14 minutos del principio).
-- El **cubo 7** existe, pero no cuenta en ninguno de los dos lados.
+- No hay ningún cubo sin contar: entre «anterior» y «reciente» no queda hueco.
 
 ### Métricas derivadas
 
 ```text
 growth        = (reciente − anterior) / max(anterior, 1)
 baselineRate  = items en (30 min, 6 h] / 165 cubos
-recentRate    = reciente / 7
+recentRate    = reciente / 8
 velocity      = recentRate / max(baselineRate, 0.25)
 volume        = items dentro de la ventana de 30 min
 coverage      = nº de redes distintas en la ventana
@@ -188,85 +187,86 @@ avisos, que además tienen su propio enfriamiento por regla y tema.
 
 ## Ejemplo numérico paso a paso
 
-Escenario: un tema sobre OpenAI con 40 minutos de vida, movimiento reciente y una
-línea base tranquila. Los valores están calculados con el código real
-(`computeTrend` con las opciones por defecto).
+Escenario: un tema sobre OpenAI con 28 minutos de vida, movimiento reciente y
+sin historia anterior. Los valores están **calculados con el código real**
+(`computeTrend` con las opciones por defecto); no están escritos a mano.
 
 **Entrada**
 
-- `now = T`, `cluster.firstSeen = T − 40 min`, `lastSeen = T`.
-- 20 items dentro de la ventana de 30 minutos: 2 por cubo en los cubos 8–14
-  (14 items, de 0,5 a 13,5 minutos atrás) y 1 por cubo en los cubos 0–5
-  (6 items, de 20 a 30 minutos atrás). Cubos 6 y 7, vacíos.
-- 66 items entre 31 y 356 minutos atrás: la línea base.
-- 3 redes: `bluesky`, `hackernews`, `reddit` (7, 7 y 6 items).
-- Cada item con `likes: 600`.
+- `now = T`, `cluster.firstSeen = T − 28 min`, `lastSeen = T`.
+- 16 items dentro de la ventana de 30 minutos, en estos minutos atrás:
+  `28, 26, 24, 22, 20, 18, 12, 11, 8, 8, 6, 5, 4, 3, 2, 1`.
+- 3 redes: `bluesky`, `reddit`, `hackernews`, alternándose.
+- Sin métricas de interacción (los items de ejemplo no traen `likes`).
 
 **Paso 1 — serie:** `bucketize` da
-`[1,1,1,1,1,1,0,0,2,2,2,2,2,2,2]` (suma 20).
+`[1,1,1,1,1,1,0,0,1,1,2,1,2,2,1]` (suma 16).
 
-**Paso 2 — mitades:** `reciente = 14` (cubos 8–14), `anterior = 6` (cubos 0–6).
+**Paso 2 — mitades:** `reciente = 10` (cubos 7–14), `anterior = 6` (cubos 0–6).
 
-**Paso 3 — crecimiento:** `growth = (14 − 6) / 6 = 1,3333…` → `1.333` (o sea,
-+133 %).
+**Paso 3 — crecimiento:** `growth = (10 − 6) / 6 = 0,6667` → `0.667` (+67 %).
 
 **Paso 4 — línea base y aceleración:**
 
-- `baselineRate = 66 / 165 = 0,4` items por cubo.
-- `recentRate = 14 / 7 = 2` items por cubo.
-- `velocity = 2 / 0,4 = 5`.
+- No hay items entre 30 min y 6 h: `baselineRate = 0`, así que el suelo manda.
+- `recentRate = 10 / 8 = 1,25` items por cubo.
+- `velocity = 1,25 / max(0; 0,25) = 5`.
 
 **Paso 5 — resto de señales:**
 
-- `volume = 20`, `coverage = 3`.
-- `engagement = 20 · 600 = 12000`.
-- `novelty = clamp01(1 − 40/360) = 0,8889`.
-- `cohesion`: 86 items en un lapso de 355,5 minutos → densidad 0,242 →
-  `1 − 0,242/12 = 0,98`.
+- `volume = 16`, `coverage = 3`.
+- `engagement = 0` (sin métricas en la entrada).
+- `novelty = clamp01(1 − 28/360) = 0,9222`.
+- `cohesion`: 16 items en 28 minutos → densidad 0,571 → `1 − 0,571/12 = 0,952`.
 
-**Paso 6 — score:** con `norm(20, 300) = ln(21)/ln(301) = 0,5335`,
-`norm(5, 12) = ln(6)/ln(13) = 0,6986`, `(3 − 1)/4 = 0,5` y
-`norm(12000, 50000) = ln(12001)/ln(50001) = 0,8681`:
+**Paso 6 — score:** con `norm(16, 300) = ln(17)/ln(301) = 0,4964`,
+`norm(5, 12) = ln(6)/ln(13) = 0,6986`, `(3 − 1)/4 = 0,5` y el término de
+interacción a cero:
 
 ```text
-0,34·0,5335 + 0,30·0,6986 + 0,16·0,5 + 0,12·0,8681 + 0,08·0,8889
-= 0,1814 + 0,2096 + 0,0800 + 0,1042 + 0,0711 = 0,6463
-score = round(100 · 0,6463) = 65
+0,34·0,4964 + 0,30·0,6986 + 0,16·0,5 + 0,12·0 + 0,08·0,9222
+= 0,1688 + 0,2096 + 0,0800 + 0 + 0,0738 = 0,5322
+score = round(100 · 0,5322) = 53
 ```
 
-**Paso 7 — estado:** `coverage 3 ≥ 3` y `velocity 5 ≥ 5`, pero `volume 20 < 25`,
-así que no es `breaking`; `velocity 5 ≥ 2,5`, `volume 20 ≥ 8` y antigüedad
-40 ≤ 90 → **`emerging`**.
+**Paso 7 — estado:** `coverage 3 ≥ 3` y `velocity 5 ≥ 5`, pero `volume 16 < 25`,
+así que no es `breaking`; `velocity 5 ≥ 2,5`, `volume 16 ≥ 8` y antigüedad
+28 ≤ 90 → **`emerging`**.
 
-**Paso 8 — motivo:** `coverage ≥ 3` y `velocity ≥ 2,5` → **`multi_source`** con
-`{ velocity: 5, growth: 133, sources: 3, volume: 20, windowMin: 30 }`.
+**Paso 8 — motivo:** `coverage ≥ 3` y `velocity ≥ 2,5` → **`multi_source`**.
 
-**Resultado** (`computeTrend` devuelve además `sparkline`, `sources`, `sampleIds`
-y `acknowledged`):
+**Resultado** (el resto de campos los devuelve el motor: `sparkline`, `sources`,
+`sampleIds`, `acknowledged`):
 
 ```json
 {
   "title": "OpenAI",
-  "score": 65,
+  "score": 53,
   "state": "emerging",
   "velocity": 5,
-  "growth": 1.333,
-  "volume": 20,
+  "growth": 0.667,
+  "volume": 16,
   "coverage": 3,
-  "engagement": 12000,
-  "novelty": 0.89,
-  "cohesion": 0.98,
+  "engagement": 0,
+  "novelty": 0.92,
+  "cohesion": 0.95,
+  "sparkline": [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 2, 1, 2, 2, 1],
   "sources": [
-    { "source": "bluesky", "count": 7, "share": 0.35 },
-    { "source": "hackernews", "count": 7, "share": 0.35 },
-    { "source": "reddit", "count": 6, "share": 0.3 }
+    { "source": "bluesky", "count": 6, "share": 0.375 },
+    { "source": "hackernews", "count": 5, "share": 0.3125 },
+    { "source": "reddit", "count": 5, "share": 0.3125 }
   ],
   "reason": {
     "code": "multi_source",
-    "params": { "velocity": 5, "growth": 133, "sources": 3, "volume": 20, "windowMin": 30 }
+    "params": { "velocity": 5, "growth": 67, "sources": 3, "volume": 16, "windowMin": 30 }
   }
 }
 ```
+
+Este caso enseña lo que el pulso **no** premia: un tema con buena aceleración y
+presencia en tres redes, pero sin interacción y con poco volumen, se queda en 53.
+Para llegar a `breaking` hacen falta 25 publicaciones además de las tres redes y
+la aceleración.
 
 ## Series temporales
 

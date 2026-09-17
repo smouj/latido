@@ -50,7 +50,7 @@ export class LatidoEngine {
   private readonly trendEngine: TrendEngine
   private readonly connectors: Record<string, Connector>
   private readonly dictionary: typeof ENTITY_SEED
-  private readonly fetchImpl: typeof fetch
+  private fetchImpl: typeof fetch
   private readonly clock: () => number
   private readonly retentionMs: number
   private readonly log: (message: string) => void
@@ -93,6 +93,14 @@ export class LatidoEngine {
 
   onUpdate(listener: (trends: Trend[], alerts: AlertEvent[]) => void): void {
     this.listener = listener
+  }
+
+  /**
+   * Cambia el cliente HTTP en caliente. El escritorio lo usa para pasar del
+   * `fetch` del WebView al cliente nativo, que no sufre CORS.
+   */
+  setFetch(fetchImpl: typeof fetch): void {
+    this.fetchImpl = fetchImpl
   }
 
   // ── ingesta ──────────────────────────────────────────────────────────────
@@ -195,6 +203,11 @@ export class LatidoEngine {
 
   /** Recalcula tendencias, guarda la serie temporal y evalúa avisos. */
   recompute(now = this.clock()): Trend[] {
+    // Fusionar temas gemelos y retirar los inactivos **antes** de medir: si no,
+    // el Radar puede enseñar dos veces la misma historia (una por cada forma de
+    // contarla) y los avisos se dispararían por duplicado.
+    this.consolidate(now)
+
     const entityNames = Object.fromEntries(
       this.store.allEntities().map((entity) => [entity.slug, entity.name]),
     )

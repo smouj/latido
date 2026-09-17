@@ -28,7 +28,7 @@ import {
 } from '@latido/engine'
 
 import { translate, type Language, type MessageKey } from '@/i18n'
-import { clearState, isDesktop, loadState, notify, saveState } from '@/platform/bridge'
+import { archiveSync, clearState, isDesktop, loadState, notify, platformFetch, saveState } from '@/platform/bridge'
 
 export type ViewKey =
   | 'home'
@@ -197,6 +197,10 @@ export const useLatido = create<LatidoState>((set, get) => ({
     applyTheme(get().theme)
     applyLanguage(get().lang)
 
+    // El escritorio usa el cliente HTTP nativo: sin CORS, Reddit, Mastodon y
+    // RSS dejan de estar bloqueados. En el navegador se queda el `fetch` normal.
+    getEngine().setFetch(await platformFetch())
+
     const current = get().sources
     const engineInstance = getEngine()
     for (const config of current) {
@@ -236,6 +240,7 @@ export const useLatido = create<LatidoState>((set, get) => ({
       set({ polling: false })
       get().sync()
       scheduleSave(get)
+      scheduleArchive(get)
     }
   },
 
@@ -533,6 +538,58 @@ async function persist(get: () => LatidoState): Promise<void> {
 function scheduleSave(get: () => LatidoState): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => void persist(get), 1000)
+}
+
+let archiveTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * Refleja el estado vivo en el archivo SQLite. Solo en escritorio, y con retraso:
+ * el archivo es para durar, no para ir detrás de cada latido de la interfaz.
+ */
+function scheduleArchive(get: () => LatidoState): void {
+  if (!isDesktop()) return
+  if (archiveTimer) clearTimeout(archiveTimer)
+  archiveTimer = setTimeout(() => {
+    const state = get()
+    const payload = {
+      items: state.items.slice(0, 400).map((item) => ({
+        id: item.id,
+        source: item.source,
+        url: item.url,
+        title: item.title ?? null,
+        body: item.body ?? null,
+        lang: item.lang ?? null,
+        author_handle: item.author.handle,
+        author_name: item.author.displayName ?? null,
+        published_at: item.publishedAt,
+        ingested_at: item.ingestedAt,
+        likes: item.metrics.likes ?? 0,
+        replies: item.metrics.replies ?? 0,
+        reposts: item.metrics.reposts ?? 0,
+        comments: item.metrics.comments ?? 0,
+        stars: item.metrics.stars ?? 0,
+        tags: item.tags,
+        entities: item.entities,
+        cluster_id: item.clusterId ?? null,
+        simhash: item.simhash,
+      })),
+      trends: state.trends.map((trend) => ({
+        id: trend.id,
+        title: trend.title,
+        state: trend.state,
+        score: trend.score,
+        velocity: trend.velocity,
+        growth: trend.growth,
+        volume: trend.volume,
+        coverage: trend.coverage,
+        first_seen: trend.firstSeen,
+        last_seen: trend.lastSeen,
+        reason_code: trend.reason.code,
+      })),
+      pruning_days: state.retentionDays === 0 ? null : state.retentionDays,
+    }
+    void archiveSync(payload)
+  }, 4000)
 }
 
 function applyTheme(theme: ThemeChoice): void {

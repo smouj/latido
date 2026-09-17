@@ -8,8 +8,7 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
-    "tauri": "tauri",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "tauri": "tauri"
   },
   "dependencies": {
     "@latido/app": "workspace:*"

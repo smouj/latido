@@ -212,3 +212,64 @@ export async function storageUsage(): Promise<number> {
   }
   return 0
 }
+
+// ── red ─────────────────────────────────────────────────────────────────────
+
+/**
+ * `fetch` de la plataforma.
+ *
+ * En el navegador es el global. En el escritorio se usa el cliente del sistema,
+ * que **no está sujeto a CORS**: es lo que permite leer Reddit, Mastodon y RSS,
+ * que desde una página web son inalcanzables. Si el complemento no está
+ * disponible, se cae al `fetch` normal en vez de romper la app.
+ */
+export async function platformFetch(): Promise<typeof fetch> {
+  if (!DESKTOP) return globalThis.fetch.bind(globalThis)
+  try {
+    const mod = await import('@tauri-apps/plugin-http')
+    return mod.fetch as unknown as typeof fetch
+  } catch {
+    return globalThis.fetch.bind(globalThis)
+  }
+}
+
+// ── archivo SQLite (solo escritorio) ────────────────────────────────────────
+
+export interface ArchiveStats {
+  posts: number
+  trends: number
+  clusters: number
+  bytes: number
+  path: string
+}
+
+/**
+ * Refleja en SQLite lo que el motor tiene en memoria. El archivo es la copia
+ * duradera: se puede abrir con `sqlite3` y su índice FTS5 está siempre al día.
+ */
+export async function archiveSync(payload: unknown): Promise<ArchiveStats | null> {
+  if (!DESKTOP) return null
+  try {
+    return await invoke<ArchiveStats>('archive_sync', { payload })
+  } catch {
+    return null
+  }
+}
+
+export async function archiveStats(): Promise<ArchiveStats | null> {
+  if (!DESKTOP) return null
+  try {
+    return await invoke<ArchiveStats>('archive_stats')
+  } catch {
+    return null
+  }
+}
+
+export async function archiveExport(): Promise<string | null> {
+  if (!DESKTOP) return null
+  try {
+    return await invoke<string>('archive_export')
+  } catch {
+    return null
+  }
+}

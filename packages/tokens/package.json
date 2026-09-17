@@ -19,6 +19,6 @@
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit || true"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

@@ -49,15 +49,23 @@ const clamp01 = (value: number): number => (value < 0 ? 0 : value > 1 ? 1 : valu
 const norm = (value: number, ceiling: number): number =>
   clamp01(Math.log1p(Math.max(0, value)) / Math.log1p(ceiling))
 
-/** Histograma de items en cubos de `bucketMs`, del más antiguo al más nuevo. */
+/**
+ * Histograma de items en cubos de `bucketMs`, del más antiguo al más nuevo.
+ *
+ * El índice se calcula **desde el ahora**, no desde el inicio de la ventana: así
+ * un item publicado en este mismo instante cae en el último cubo en lugar de
+ * quedarse fuera de la serie.
+ */
 export function bucketize(items: Item[], now: number, options: TrendOptions = {}): number[] {
   const { bucketMs, buckets } = { ...DEFAULTS, ...options }
   const counts = new Array<number>(buckets).fill(0)
-  const start = now - buckets * bucketMs
   for (const item of items) {
-    const index = Math.floor((item.publishedAt - start) / bucketMs)
-    if (index < 0 || index >= buckets) continue
-    counts[index] = (counts[index] ?? 0) + 1
+    const age = now - item.publishedAt
+    if (age < 0) continue
+    const index = buckets - 1 - Math.floor(age / bucketMs)
+    if (index < 0) continue
+    const slot = Math.min(index, buckets - 1)
+    counts[slot] = (counts[slot] ?? 0) + 1
   }
   return counts
 }
@@ -134,8 +142,11 @@ export function computeTrend(input: TrendInput): Trend {
 
   const window = items.filter((item) => now - item.publishedAt <= options.windowMs)
   const series = bucketize(window, now, options)
+  // El corte es `slice(half)`: entre el último cubo «anterior» y el primero
+  // «reciente» no puede quedar ningún cubo suelto sin contar.
   const half = Math.floor(options.buckets / 2)
-  const recent = series.slice(-half).reduce((sum, value) => sum + value, 0)
+  const recentBuckets = options.buckets - half
+  const recent = series.slice(half).reduce((sum, value) => sum + value, 0)
   const previous = series.slice(0, half).reduce((sum, value) => sum + value, 0)
 
   const growth = (recent - previous) / Math.max(previous, 1)
@@ -144,7 +155,7 @@ export function computeTrend(input: TrendInput): Trend {
   )
   const baselineBuckets = Math.max(1, Math.round((options.baselineMs - options.windowMs) / options.bucketMs))
   const baselineRate = baselineItems.length / baselineBuckets
-  const recentRate = recent / half
+  const recentRate = recent / recentBuckets
   const velocity = recentRate / Math.max(baselineRate, 0.25)
 
   const sources = sourceBreakdown(window)

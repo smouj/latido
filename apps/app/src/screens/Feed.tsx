@@ -1,3 +1,5 @@
+import { useMemo } from 'react'
+
 import type { Item } from '@latido/engine'
 
 import { PostCard } from '@/components/PostCard'
@@ -12,24 +14,31 @@ export type FeedMode = 'home' | 'breaking' | 'bookmarks'
  * El flujo. Un mismo componente para tres vistas porque comparten la misma
  * gramática visual: cabecera, filtros y lista. Cambia el origen de los datos,
  * no la forma de leerlos.
+ *
+ * Ojo con Zustand: los selectores deben devolver referencias estables. Contar
+ * agrupaciones dentro de un selector crea un `Map` nuevo en cada render y deja
+ * la interfaz en un bucle de actualización. Se calcula con `useMemo`.
  */
 export function FeedScreen({ mode }: { mode: FeedMode }): JSX.Element {
   const { t, items, trends, ready, filters, setFilters } = useLatido()
 
-  const byCluster = useLatido((state) => {
+  const byCluster = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const item of state.items) {
+    for (const item of items) {
       if (!item.clusterId) continue
       counts.set(item.clusterId, (counts.get(item.clusterId) ?? 0) + 1)
     }
     return counts
-  })
+  }, [items])
 
   const bookmarked = useLatido((state) => state.bookmarkedIds)
   const visible: Item[] =
     mode === 'bookmarks' ? items.filter((item) => bookmarked.includes(item.id)) : items
 
-  const hot = trends.filter((trend) => trend.state === 'breaking' || trend.state === 'emerging')
+  const hot = useMemo(
+    () => trends.filter((trend) => trend.state === 'breaking' || trend.state === 'emerging'),
+    [trends],
+  )
 
   if (!ready) return <SkeletonList />
 

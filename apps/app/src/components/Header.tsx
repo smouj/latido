@@ -20,7 +20,7 @@ export function Header({ title, subtitle }: { title: string; subtitle?: string }
 
         <span className="header__spacer" />
 
-        <label className="search-field" style={{ maxWidth: '16rem' }}>
+        <label className="search-field">
           <Icon name="search" size="sm" />
           <input
             value={query}

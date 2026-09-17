@@ -109,10 +109,7 @@ export function TrendCard({ trend, rank }: { trend: Trend; rank?: number }): JSX
           </div>
         </>
       ) : (
-        <div className="inline">
-          <Sparkline values={trend.sparkline} className="sparkline--rail" height={20} />
-          <TrendDelta growth={trend.growth} />
-        </div>
+        <Sparkline values={trend.sparkline} className="sparkline--rail" height={20} />
       )}
     </article>
   )
@@ -130,10 +127,14 @@ export function TrendRailRow({ trend, rank }: { trend: Trend; rank: number }): J
         </span>
       </span>
       <span className="rail-trend__meta">
-        <span className={trend.growth >= 0 ? 'delta' : 'delta delta--down'}>
-          {trend.growth >= 0 ? '+' : '−'}
-          {Math.abs(Math.round(trend.growth * 100))} %
-        </span>
+        {trend.volume > 0 ? (
+          <span className={trend.growth >= 0 ? 'delta' : 'delta delta--down'}>
+            {trend.growth >= 0 ? '+' : '−'}
+            {Math.abs(Math.round(trend.growth * 100))} %
+          </span>
+        ) : (
+          <span className="faint">—</span>
+        )}
       </span>
       <span className="rail-trend__meta">
         {compactNumber(trend.volume, lang)} · {trend.coverage} {lang === 'es' ? 'redes' : 'nets'}
