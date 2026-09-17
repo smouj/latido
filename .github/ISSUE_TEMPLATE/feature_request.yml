@@ -1,0 +1,61 @@
+name: Propuesta
+description: Una idea para mejorar Latido.
+title: '[Propuesta] '
+labels: ['propuesta']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Latido es local-first y sin servidor: cualquier propuesta que añada cuentas,
+        telemetría o códigos de servidor propios se descarta de entrada. Todo lo
+        demás, adelante.
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qué problema resuelve
+      description: El problema, no la solución. Un ejemplo concreto vale más que una idea general.
+      placeholder: Cuando un tema mezcla dos historias distintas no tengo forma de separarlas.
+    validations:
+      required: true
+
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Qué propones
+      placeholder: Poder marcar dos publicaciones como «no son el mismo tema» y que el agrupador lo respete.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ambito
+    attributes:
+      label: Ámbito
+      description: Dónde crees que habría que tocar.
+      options:
+        - Motor (conectores, normalización, agrupación, tendencias)
+        - Interfaz
+        - Aplicación de escritorio (Tauri)
+        - Sistema de diseño (tokens)
+        - Documentación
+        - Empaquetado y distribución
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas que has considerado
+      description: Otras formas de resolver lo mismo, y por qué las descartas.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: limites
+    attributes:
+      label: Límites del proyecto
+      options:
+        - label: La propuesta funciona sin conexión o degrada bien sin ella.
+          required: false
+        - label: La propuesta no exige crear cuentas ni enviar datos del usuario fuera del dispositivo.
+          required: true

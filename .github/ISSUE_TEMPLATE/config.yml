@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Cómo contribuir
+    url: https://github.com/smouj/latido/blob/master/docs/CONTRIBUTING.md
+    about: Entorno, comandos reales del repositorio y qué se espera de un cambio.
+  - name: Cómo reportar una vulnerabilidad
+    url: https://github.com/smouj/latido/blob/master/docs/SECURITY.md
+    about: No abras un issue público para fallos de seguridad; aquí se explica el canal.
+  - name: Qué guarda Latido y qué sale a la red
+    url: https://github.com/smouj/latido/blob/master/docs/PRIVACY.md
+    about: Detalle de los datos locales, las peticiones a las fuentes y cómo borrarlo todo.
