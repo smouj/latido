@@ -41,6 +41,19 @@ export {
   type TrendPoint,
 } from './store'
 export { MIGRATIONS, SCHEMA_SQL, SCHEMA_VERSION } from './store/schema'
+// `normalize` ya exporta un `detectLanguage` (devuelve 'und' cuando duda), así
+// que el detector del motor de traducción —más estricto, devuelve null— se
+// publica con nombre propio para no romper el contrato existente.
+export {
+  TranslationQueue,
+  createTranslator,
+  detectLanguage as detectSourceLanguage,
+  type QueueOptions,
+  type TranslateConfig,
+  type TranslateContext,
+  type TranslateProviderKind,
+  type Translator,
+} from './translate'
 export { LatidoEngine, type EngineOptions } from './engine'
 export {
   CONNECTORS,
