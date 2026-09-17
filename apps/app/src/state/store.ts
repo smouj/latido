@@ -28,7 +28,7 @@ import {
 } from '@latido/engine'
 
 import { translate, type Language, type MessageKey } from '@/i18n'
-import { archiveSync, clearState, isDesktop, loadState, notify, platformFetch, readSecret, saveState, storeSecret } from '@/platform/bridge'
+import { archiveSync, clearState, ensureWideWindow, isDesktop, loadState, notify, platformFetch, readSecret, saveState, storeSecret } from '@/platform/bridge'
 import { keywordsFrom, startRealtime, stopRealtime, type RealtimeStatus } from '@/state/realtime'
 import {
   TranslationQueue,
@@ -358,6 +358,10 @@ export const useLatido = create<LatidoState>((set, get) => ({
     applyPlatform(get().platform)
     applyScale(get().uiScale)
     applyLanguage(get().lang)
+
+    // En el escritorio, si la ventana viene estrecha se maximiza: así se ve el
+    // contexto lateral en lugar del modo compacto con todo ampliado.
+    if (await ensureWideWindow()) applyScale(get().uiScale)
 
     // La clave del proveedor de traducción vive en el llavero del sistema.
     translateApiKey = (await readSecret(TRANSLATE_SECRET)) ?? ''

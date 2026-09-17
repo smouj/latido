@@ -1,6 +1,6 @@
 {
   "name": "@latido/engine",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Motor de Latido: conectores, normalización, clustering y Trend Engine. TypeScript puro, sin I/O implícito.",
   "type": "module",

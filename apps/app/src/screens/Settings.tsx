@@ -403,7 +403,7 @@ export function SettingsScreen(): JSX.Element {
         <p className="small muted">{t('settings.aboutText')}</p>
         <div className="inline inline--wrap">
           <span className="tag">AGPL-3.0</span>
-          <span className="tag">v0.2.0</span>
+          <span className="tag">v0.2.1</span>
           <span className="tag">{platformName()}</span>
           <a
             className="tag"

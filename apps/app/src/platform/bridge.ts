@@ -233,6 +233,32 @@ export async function platformFetch(): Promise<typeof fetch> {
   }
 }
 
+// ── ventana (solo escritorio) ──────────────────────────────────────────────
+
+/**
+ * Asegura una ventana ancha al arrancar.
+ *
+ * Un lector de flujo necesita ancho: si la ventana viene estrecha, la aplicación
+ * cae al modo compacto (barra inferior, sin contexto lateral) y todo se ve
+ * ampliado. Si el escritorio no deja medir o maximizar, seguimos como estamos:
+ * nunca es motivo para fallar el arranque.
+ */
+export async function ensureWideWindow(minLogicalWidth = 1100): Promise<boolean> {
+  if (!DESKTOP) return false
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const win = getCurrentWindow()
+    if (await win.isMaximized()) return false
+    const [size, factor] = await Promise.all([win.innerSize(), win.scaleFactor()])
+    const logicalWidth = size.width / (factor || 1)
+    if (logicalWidth >= minLogicalWidth) return false
+    await win.maximize()
+    return true
+  } catch {
+    return false
+  }
+}
+
 // ── archivo SQLite (solo escritorio) ────────────────────────────────────────
 
 export interface ArchiveStats {
