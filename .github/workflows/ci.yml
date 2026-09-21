@@ -19,9 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4  # la versión sale de packageManager
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6  # la versión sale de packageManager
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: pnpm
@@ -51,9 +51,9 @@ jobs:
       matrix:
         node: [20, 22]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4  # la versión sale de packageManager
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6  # la versión sale de packageManager
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
@@ -66,15 +66,15 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Dependencias del sistema para Tauri 2
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev patchelf libssl-dev
-      - uses: pnpm/action-setup@v4  # la versión sale de packageManager
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v6  # la versión sale de packageManager
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: pnpm
